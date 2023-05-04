@@ -10,7 +10,7 @@ sys.path.append('Z:/Mingi Kim/FPGA/qick/qick_lib')
 from qick import QickConfig
 import Pyro4
 
-# github desktop test
+# github desktop test 34tplk3trt
 
 # In[1]: VISA controlled instruments
 
