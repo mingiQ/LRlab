@@ -126,7 +126,7 @@ class DMM:
         self._gpib.write('SENS:VOLT:NULL ' + str(s))
         
 
-## MicroLambda bandpass filter
+## MicroLambda bandpass filter --> need to fix!
 class MLBPF:
     def __init__(self, addr):
         self.arduino = serial.Serial(port=str(addr), baudrate=115200, timeout=0.1)
