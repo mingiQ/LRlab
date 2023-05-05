@@ -18,5 +18,5 @@ class DAC_CF:
     def voltsweep(self, dac_CF, volt):
         self.DAC.write(bytes("WF "+ str(dac_CF) +" "+ str(volt) +" "+ str(volt), 'utf-8'))
         time.sleep(0.05)
-        data = self.arduino.readline().decode().rstrip()
+        data = self.DAC.readline().decode().rstrip()
         print(data)
