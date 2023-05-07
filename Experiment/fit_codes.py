@@ -3,6 +3,8 @@
 '''
 fitting pkg ; ref: slab/slab/dsfit.py
 https://github.com/SchusterLab/slab/blob/master/slab/dsfit.py
+author : David Schuster
+commented by : Mingi
 
 '''
 import numpy as np
@@ -22,8 +24,10 @@ from scipy import optimize
 #     plt={'guiqwt':plt1,'matplotlib':plt2}[pkg]
     
 def argselectdomain(xdata,domain):
-    ind=np.searchsorted(xdata,domain)
+    ind=np.searchsorted(xdata,domain)    
+    # if domain is [f_start, f_stop], searchsorted returns the index of xdata where xdata[index-1] < f_i <= xdata[index] (left) 
     return (ind[0],ind[1])
+
 
 def selectdomain(xdata,ydata,domain):
     ind=np.searchsorted(xdata,domain)
