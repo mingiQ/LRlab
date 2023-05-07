@@ -135,6 +135,15 @@ def hangerfunctilt(p,x):
     return y * (-2. * Q0 * Qc + Qc ** 2. + Q0 ** 2. * (1. + Qc ** 2. * (2. * a + b) ** 2.)) / (
     Qc ** 2 * (1. + 4. * Q0 ** 2. * a ** 2.))
 
+def lorentzian_asym(f, f0, df, Qe, Q, scale):
+    
+    '''
+    Asymmetric Lorentzian fit : Journal of Applied Physics 111, 054510 (2012)
+
+    '''
+    denom = sqrt(1 + 4*Q**2*((f-f0)/f0)**2)
+    numerator = scale * sqrt((1-Q/Qe)**2+4*Q**2*((f-f0)/f0-Q*df/(Qe*f0))**2)
+    return numerator/denom
 
 
 '''
