@@ -90,7 +90,10 @@ def hangerfunc_old(p,x):
     return ((4.*((x-p[0])* p[1]/p[0])**2. +p[2]**2.)/(1.+4.*((x-p[0])* p[1]/p[0])**2.))*p[3]
 
 def hangerfunc(p,x):
-    """p=[f0,Qi,Qc,df,scale]  linmag """
+    """p=[f0,Qi,Qc,df,scale]  linmag
+        ! different from [An analysis method for asymmetric resonator transmission applied to superconducting devices]
+        Journal of Applied Physics 111, 054510 (2012) https://doi.org/10.1063/1.3692073
+    """
     #print p    
     f0,Qi,Qc,df,scale = p
     a=(x-(f0+df))/(f0+df)
@@ -111,7 +114,7 @@ def hangerfunc_new(p,x):
     return y
     
 def hangerfunc_new_withQc(p,x):
-    """p=[f0,Qi,Qc,df,scale]   logmag """
+    """p=[f0,Qi,Qc,df,scale]   logmag -- similar  to JAP111, 054510 but not exactly the same"""
     #print p    
     f0,Qi,Qc,df,scale = p
     a=(x-(f0+df))/(f0+df)
