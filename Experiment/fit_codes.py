@@ -30,6 +30,12 @@ def argselectdomain(xdata,domain):
 
 
 def selectdomain(xdata,ydata,domain):
+    '''
+    choose certain region in xdata and correponding ydata
+    xdata = array
+    ydata = array
+    domain = float or array e.g. [2.3e9, 4.5e9] : select x data where x[i] is larger than 2.3e9 and smaller than 4.5e9
+    '''
     ind=np.searchsorted(xdata,domain)
     return xdata[ind[0]:ind[1]],ydata[ind[0]:ind[1]]
 
@@ -209,9 +215,17 @@ def hangerqs_old(fitparams):
 def fitgeneral(xdata, ydata, fitfunc, fitparams, domain=None, showfit=False, showstartfit=False, showdata=True,
                label="", mark_data='bo', mark_fit='r-'):
     """Uses optimize.leastsq to fit xdata ,ydata using fitfunc and adjusting fit params"""
+    '''
+    xdata : 1d array
+    ydata : 1d array
+    fitfunc : above model functions in In[2]
+    fitparams : inital guess for the fitting parameters p_init = [p0,p1,...] ~ 1d array
+    domain : [x_start, x_stop]
+    
+    '''
 
     # sort data
-    order = np.argsort(xdata)
+    order = np.argsort(xdata)  
     xdata = xdata[order]
     ydata = ydata[order]
 
@@ -220,11 +234,15 @@ def fitgeneral(xdata, ydata, fitfunc, fitparams, domain=None, showfit=False, sho
     else:
         fitdatax=xdata
         fitdatay=ydata
+        
 #    print 'minimum', np.min(fitdatay)
 #    ymin=np.min(fitdatay)
     errfunc = lambda p, x, y: (fitfunc(p,x) - y) #there shouldn't be **2 # Distance to the target function
+    
     startparams=fitparams # Initial guess for the parameters
+    
     bestfitparams, success = optimize.leastsq(errfunc, startparams[:], args=(fitdatax,fitdatay))
+    
     if showfit:
         if showdata:
             plt.plot(fitdatax,fitdatay,mark_data,label=label+" data")
@@ -241,13 +259,16 @@ def fitgeneral(xdata, ydata, fitfunc, fitparams, domain=None, showfit=False, sho
 
 def fitlinear(xdata,ydata,fitparams=None,domain=None,showfit=False,showstartfit=False,label=""):
     """Fits decaying sin wave of form: p[0]*np.sin(2.*pi*p[1]*x+p[2]*pi/180.)*np.e**(-1.*(x-p[5])/p[3])+p[4]"""
+    
     if domain is not None:
         fitdatax,fitdatay = selectdomain(xdata,ydata,domain)
     else:
         fitdatax=xdata
         fitdatay=ydata
+    
+    # determine initial fitting paramters
     if fitparams is None:
-        fitparams=[1,1]
+        fitparams    = [1,1]
         fitparams[0] = fitdatay[0]
         fitparams[1] = (float(fitdatay[-1])-float(fitdatay[0]))/( float(fitdatax[-1])-float(fitdatax[0]))
 
@@ -260,14 +281,20 @@ def fitlinear(xdata,ydata,fitparams=None,domain=None,showfit=False,showstartfit=
 def fitpoly(xdata,ydata,fitparams=None,domain=None,showfit=False,showstartfit=False,label="",debug=False):
     """fit lorentzian:
         returns [offset,amplitude,center,hwhm]"""
+        
     if domain is not None:
         fitdatax,fitdatay = selectdomain(xdata,ydata,domain)
     else:
         fitdatax=xdata
         fitdatay=ydata
+    
+    # determine initial fitting paramters
     if fitparams is None:
         fitparams=[ydata[0],(ydata[-1]-ydata[0])/(xdata[-1]-xdata[0]),0,xdata[0]]
+    
+    # fit debugging option : inspection mode
     if debug==True: print(fitparams)
+    
     p1 = fitgeneral(fitdatax, fitdatay, poly, fitparams, domain=None, showfit=showfit, showstartfit=showstartfit,
                     label=label)
 
@@ -278,21 +305,28 @@ def fitpoly(xdata,ydata,fitparams=None,domain=None,showfit=False,showstartfit=Fa
 def fitlor(xdata,ydata,fitparams=None,domain=None,showfit=False,showstartfit=False,label="",debug=False):
     """fit lorentzian:
         returns [offset,amplitude,center,hwhm]"""
+    
     if domain is not None:
         fitdatax,fitdatay = selectdomain(xdata,ydata,domain)
     else:
         fitdatax=xdata
         fitdatay=ydata
+    
+    # determine initial fitting parameters
     if fitparams is None:
         fitparams=[0,0,0,0]
         fitparams[0]=(fitdatay[0]+fitdatay[-1])/2.
         fitparams[1]=max(fitdatay)-min(fitdatay)
         fitparams[2]=fitdatax[np.argmax(fitdatay)]
         fitparams[3]=(max(fitdatax)-min(fitdatax))/10.
+    
+    # fit debugging option : inspection mode
     if debug==True: print(fitparams)
+    
     p1 = fitgeneral(fitdatax, fitdatay, lorfunc, fitparams, domain=None, showfit=showfit, showstartfit=showstartfit,
                     label=label)
     p1[3]=abs(p1[3])
+    
     return p1
 
 
@@ -300,24 +334,31 @@ def fitlor(xdata,ydata,fitparams=None,domain=None,showfit=False,showstartfit=Fal
 def fitharm(xdata,ydata,fitparams=None,domain=None,showfit=False,showstartfit=False,label="",debug=False):
     """fit lorentzian:
         returns [offset,amplitude,center,hwhm]"""
+    
     if domain is not None:
         fitdatax,fitdatay = selectdomain(xdata,ydata,domain)
     else:
         fitdatax=xdata
         fitdatay=ydata
+    
+    # determine initial fitting parameters
     if fitparams is None:
-        fitparams=[0,0,0,0]
-        fitparams[0]=(fitdatay[0]+fitdatay[-1])/2.
+        fitparams    = [0,0,0,0]
+        fitparams[0] = (fitdatay[0]+fitdatay[-1])/2.
         fitparams[3] = (max(fitdatax)-min(fitdatax))/50.
-        fitparams[2]=fitdatax[np.argmax(fitdatay)]
-        fitparams[1]=(max(fitdatay)-min(fitdatay))*fitparams[3]*fitparams[2]*4*(3.14)**2
+        fitparams[2] = fitdatax[np.argmax(fitdatay)]
+        fitparams[1] = (max(fitdatay)-min(fitdatay))*fitparams[3]*fitparams[2]*4*(3.14)**2
 
 #         fitparams[3]=(max(fitdatax)-min(fitdatax))/50.
 #         fitparams[3] = 2.88606749e+05
+    
+    # fit debugging option : inspection mode
     if debug==True: print(fitparams)
+    
     p1 = fitgeneral(fitdatax,fitdatay,harmfunc,fitparams,domain=None,showfit=showfit,showstartfit=showstartfit,label=label)
-    p1[3]=abs(p1[3])
+    p1[3] = abs(p1[3])
     p1[2] = abs(p1[2])
+    
     return p1
 
 
@@ -325,11 +366,14 @@ def fitharm(xdata,ydata,fitparams=None,domain=None,showfit=False,showstartfit=Fa
     
 def fitexp(xdata,ydata,fitparams=None,domain=None,showfit=False,showstartfit=False,label=""):
     """Fit exponential decay (p[0]+p[1]*exp(-(x-p[2])/p[3]))"""
+    
     if domain is not None:
         fitdatax,fitdatay = selectdomain(xdata,ydata,domain)
     else:
         fitdatax=xdata
         fitdatay=ydata
+    
+    # determine initial fit parameters
     if fitparams is None:    
         fitparams=[0.,0.,0.,0.]
         fitparams[0]=fitdatay[-1]
@@ -337,6 +381,7 @@ def fitexp(xdata,ydata,fitparams=None,domain=None,showfit=False,showstartfit=Fal
         fitparams[1]=fitdatay[0]-fitdatay[-1]
         fitparams[2]=fitdatax[0]
         fitparams[3]=(fitdatax[-1]-fitdatax[0])/5.
+    
     #print fitparams
     p1 = fitgeneral(fitdatax, fitdatay, expfunc, fitparams, domain=None, showfit=showfit, showstartfit=showstartfit,
                     label=label)
@@ -349,16 +394,20 @@ def fitexp(xdata,ydata,fitparams=None,domain=None,showfit=False,showstartfit=Fal
 
 def fitpulse_err(xdata,ydata,fitparams=None,domain=None,showfit=False,showstartfit=False,label=""):
     """Fit pulse err decay (p[0]+p[1]*(1-p[2])^x)"""
+    
     if domain is not None:
         fitdatax,fitdatay = selectdomain(xdata,ydata,domain)
     else:
         fitdatax=xdata
         fitdatay=ydata
+        
+    # determine initial fit parameters
     if fitparams is None:    
         fitparams=[0.,0.]
         fitparams[0]=fitdatay[-1]
         fitparams[1]=fitdatay[0]-fitdatay[-1]
         fitparams[1]=fitdatay[0]-fitdatay[-1]
+        
     #print fitparams
     p1 = fitgeneral(fitdatax, fitdatay, pulse_errfunc, fitparams, domain=None, showfit=showfit,
                     showstartfit=showstartfit, label=label)
@@ -377,6 +426,8 @@ def fitgauss(xdata,ydata,fitparams=None,no_offset=False,domain=None,showfit=Fals
     else:
         fitdatax=xdata
         fitdatay=ydata
+    
+    # determine initial fit parameters
     if fitparams is None:
         fitparams=[0,0,0,0]
         fitparams[0]=(fitdatay[0]+fitdatay[-1])/2.
@@ -384,6 +435,7 @@ def fitgauss(xdata,ydata,fitparams=None,no_offset=False,domain=None,showfit=Fals
         fitparams[2]=fitdatax[np.argmax(fitdatay)]
         fitparams[3]=(max(fitdatax)-min(fitdatax))/3.
 
+    # determine fitfunc (with offset / wo offset)
     if no_offset:
         fitfunc = gaussfunc_nooffset
         fitparams = fitparams[1:]
@@ -391,17 +443,21 @@ def fitgauss(xdata,ydata,fitparams=None,no_offset=False,domain=None,showfit=Fals
         fitfunc = gaussfunc
 
     p1 = fitgeneral(fitdatax,fitdatay,fitfunc,fitparams,domain=None,showfit=showfit,showstartfit=showstartfit,label=label)
+    
     return p1   
     
 
 
 def fitdecaysin(xdata,ydata,fitparams=None,domain=None,showfit=False,showstartfit=False,label=""):
     """Fits decaying sin wave of form: p[0]*np.sin(2.*pi*p[1]*x+p[2]*pi/180.)*np.e**(-1.*(x-p[5])/p[3])+p[4]"""
+    
     if domain is not None:
         fitdatax,fitdatay = selectdomain(xdata,ydata,domain)
     else:
         fitdatax=xdata
         fitdatay=ydata
+    
+    # determine initial fit parameters
     if fitparams is None:    
         FFT=scipy.fft(fitdatay)
         fft_freqs=scipy.fftpack.fftfreq(len(fitdatay),fitdatax[1]-fitdatax[0])
@@ -428,11 +484,14 @@ def fitdecaysin(xdata,ydata,fitparams=None,domain=None,showfit=False,showstartfi
 
 def fitdecaydoublesin(xdata,ydata,fitparams=None,domain=None,showfit=False,showstartfit=False,label=""):
     """Fits decaying sin wave of form: p[0]*np.sin(2.*pi*p[1]*x+p[2]*pi/180.)*np.e**(-1.*(x-p[5])/p[3])+p[4]"""
+    
     if domain is not None:
         fitdatax,fitdatay = selectdomain(xdata,ydata,domain)
     else:
         fitdatax=xdata
         fitdatay=ydata
+    
+    # determine initial fit parameters
     if fitparams is None:
         FFT=scipy.fft(fitdatay)
         fft_freqs=scipy.fftpack.fftfreq(len(fitdatay),fitdatax[1]-fitdatax[0])
@@ -459,11 +518,14 @@ def fitdecaydoublesin(xdata,ydata,fitparams=None,domain=None,showfit=False,shows
 
 def fitsin(xdata,ydata,fitparams=None,domain=None,showfit=False,showstartfit=False,label=""):
     """Fits sin wave of form: p[0]*np.sin(2.*pi*p[1]*x+p[2]*pi/180.)+p[3]"""
+    
     if domain is not None:
         fitdatax,fitdatay = selectdomain(xdata,ydata,domain)
     else:
         fitdatax=xdata
         fitdatay=ydata
+    
+    # determine initial fit parameters  
     if fitparams is None:    
         FFT=scipy.fft(fitdatay)
         fft_freqs=scipy.fftpack.fftfreq(len(fitdatay),fitdatax[1]-fitdatax[0])
@@ -496,17 +558,22 @@ def fithanger_old (xdata,ydata,fitparams=None,domain=None,showfit=False,showstar
     else:
         fitdatax=xdata
         fitdatay=ydata
+    
+    # determine initial fit parameters
     if fitparams is None:    
-        fitparams=[0,0,0,0]
-        peakloc=np.argmin(fitdatay)
-        ymax=(fitdatay[0]+fitdatay[-1])/2.
-        fitparams[0]=fitdatax[peakloc]
-        fitparams[1]=abs(fitdatax[peakloc]/((max(fitdatax)-min(fitdatax))/3.))
+        fitparams    = [0,0,0,0]
+        peakloc      = np.argmin(fitdatay)                  # locate valley 
+        ymax         = (fitdatay[0]+fitdatay[-1])/2.        # y max = avg of yvalue at each end
+        fitparams[0] = fitdatax[peakloc]                    # set valley as a resonance
+        fitparams[1] = abs(fitdatax[peakloc]/((max(fitdatax)-min(fitdatax))/3.))   # Q ~ f0/FWHM
+        
         if fitdatay[peakloc] > 0:
             fitparams[2] = (fitdatay[peakloc] / ymax) ** 0.5
         else:
             fitparams[2] = 0.001
-        fitparams[3]=ymax
+        
+        fitparams[3] = ymax
+   
     return fitgeneral(fitdatax, fitdatay, hangerfunc_old, fitparams, domain=None, showfit=showfit,
                       showstartfit=showstartfit, label=label)
 
@@ -526,24 +593,27 @@ def fithanger_new(xdata, ydata, fitparams=None, domain=None, showfit=False, show
     if domain is not None:
         fitdatax,fitdatay = selectdomain(xdata,ydata,domain)
     else:
-        fitdatax=xdata
-        fitdatay=ydata
+        fitdatax = xdata
+        fitdatay = ydata
+    
+    # determine initial fit parameters
     if fitparams is None:    
-        peakloc=np.argmin(fitdatay)
-        ymax=(fitdatay[0]+fitdatay[-1])/2.
-        ymin=fitdatay[peakloc]        
-        f0=fitdatax[peakloc]
-        Q0=abs(fitdatax[peakloc]/((max(fitdatax)-min(fitdatax))/5.))
-        scale= ymax-ymin
-        Qi=2*Q0
+        peakloc = np.argmin(fitdatay)
+        ymax    = (fitdatay[0]+fitdatay[-1])/2.
+        ymin    = fitdatay[peakloc]        
+        f0      = fitdatax[peakloc]
+        Q0      = abs(fitdatax[peakloc]/((max(fitdatax)-min(fitdatax))/5.))
+        scale   = ymax-ymin
+        Qi      = 2*Q0
 
         #slope = (fitdatay[-1]-fitdatay[0])/(fitdatax[-1]-fitdatax[0])
         #offset= ymin-slope*f0
-        fitparams=[f0,abs(Qi),0.,scale]
+        fitparams = [f0,abs(Qi),0.,scale]
         #print '--------------Initial Parameter Set--------------\nf0: {0}\nQi: {1}\nQc: {2}\ndf: {3}\nScale: {4}\nSlope: {5}\nOffset:{6}\n'.format(f0,Qi,Qc,0.,scale,slope, offset)
-    fitresult = fitgeneral(fitdatax, fitdatay, hangerfunc_new, fitparams, domain=None, showfit=showfit,
+    fitresult    = fitgeneral(fitdatax, fitdatay, hangerfunc_new, fitparams, domain=None, showfit=showfit,
                            showstartfit=showstartfit, label=label, mark_data=mark_data, mark_fit=mark_fit)
-    fitresult[1]=abs(fitresult[1])
+    
+    fitresult[1] = abs(fitresult[1])
     #fitresult[2]=abs(fitresult[2])
     if printresult: print('-- Fit Result --\nf0: {0}\nQi: {1}\nQc: {2}\ndf: {3}'.format(fitresult[0], fitresult[1],
                                                                                         fitresult[2], fitresult[3]))
@@ -564,23 +634,28 @@ def fithanger_new_withQc(xdata, ydata, fitparams=None, domain=None, showfit=Fals
     else:
         fitdatax=xdata
         fitdatay=ydata
+        
+    # determine initial fit parameters
     if fitparams is None:    
-        peakloc=np.argmin(fitdatay)
-        ymax=(fitdatay[0]+fitdatay[-1])/2.
-        ymin=fitdatay[peakloc]        
-        f0=fitdatax[peakloc]
-        Q0=abs(fitdatax[peakloc]/((max(fitdatax)-min(fitdatax))/5.))
-        scale= ymax-ymin
-        Qi=2*Q0
-        Qc=Q0
+        peakloc = np.argmin(fitdatay)
+        ymax    = (fitdatay[0]+fitdatay[-1])/2.
+        ymin    = fitdatay[peakloc]        
+        f0      = fitdatax[peakloc]
+        Q0      = abs(fitdatax[peakloc]/((max(fitdatax)-min(fitdatax))/5.))
+        scale   = ymax-ymin
+        Qi      = 2*Q0
+        Qc      = Q0
         #slope = (fitdatay[-1]-fitdatay[0])/(fitdatax[-1]-fitdatax[0])
         #offset= ymin-slope*f0
-        fitparams=[f0,abs(Qi),abs(Qc),0.,scale]
+        fitparams = [f0,abs(Qi),abs(Qc),0.,scale]
         #print '--------------Initial Parameter Set--------------\nf0: {0}\nQi: {1}\nQc: {2}\ndf: {3}\nScale: {4}\nSlope: {5}\nOffset:{6}\n'.format(f0,Qi,Qc,0.,scale,slope, offset)
+    
     fitresult = fitgeneral(fitdatax, fitdatay, hangerfunc_new_withQc, fitparams, domain=None, showfit=showfit,
                            showstartfit=showstartfit, label=label, mark_data=mark_data, mark_fit=mark_fit)
-    fitresult[1]=abs(fitresult[1])
-    fitresult[2]=abs(fitresult[2])
+    
+    fitresult[1] = abs(fitresult[1])
+    fitresult[2] = abs(fitresult[2])
+    
     if printresult: print('-- Fit Result --\nf0: {0}\nQi: {1}\nQc: {2}\ndf: {3}\nscale: {4}'.format(fitresult[0],
                                                                                                     fitresult[1],
                                                                                                     fitresult[2],
@@ -602,6 +677,7 @@ def fithanger(xdata, ydata, fitparams=None, domain=None, showfit=False, showstar
     else:
         fitdatax=xdata
         fitdatay=ydata
+        
     if fitparams is None:    
         peakloc=np.argmin(fitdatay)
         ymax=(fitdatay[0]+fitdatay[-1])/2.
@@ -637,6 +713,7 @@ def fithangertilt(xdata, ydata, fitparams=None, domain=None, showfit=False, show
     else:
         fitdatax=xdata
         fitdatay=ydata
+        
     if fitparams is None:    
         peakloc=np.argmin(fitdatay)
         ymax=(fitdatay[0]+fitdatay[-1])/2.
@@ -650,8 +727,10 @@ def fithangertilt(xdata, ydata, fitparams=None, domain=None, showfit=False, show
         offset= ymin-slope*f0
         fitparams=[f0,Qi,Qc,0.0001,slope, offset]
         #print '--------------Initial Parameter Set--------------\nf0: {0}\nQi: {1}\nQc: {2}\ndf: {3}\nScale: {4}\nSlope: {5}\nOffset:{6}\n'.format(f0,Qi,Qc,0.,scale,slope, offset)
+        
         fitresult = fitgeneral(fitdatax, fitdatay, hangerfunctilt, fitparams, domain=None, showfit=showfit,
                                showstartfit=showstartfit, label=label)
+        
         if printresult: print('-- Fit Result --\nf0: {0}\nQi: {1}\nQc: {2}\ndf: {3}\nslope: {4}\noffset: {5}\n'.format(
             fitresult[0], fitresult[1], fitresult[2], fitresult[3], fitresult[4], fitresult[5]))
     return fitresult
