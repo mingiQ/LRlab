@@ -132,11 +132,11 @@ def hangerfunc_new_withQc(p,x):
 def hangerfunctilt(p,x):
     """Ge Editing  p=[f0,Qi,Qc,df,scale,slope, offset] linmag"""
     f0, Qi, Qc, df, slope, offset = p
-    a=(x-(f0+df))/(f0+df)
-    b=2*df/f0
-    Q0=1./(1./Qi+1./Qc)
-    #y=math.exp(slope*x+offset)
-    y=[math.exp(slope*i+offset) for i in x]
+    a  = (x-(f0+df))/(f0+df)
+    b  = 2*df/f0
+    Q0 = 1./(1./Qi+1./Qc)
+    y  = math.exp(slope*x+offset)
+    #y=[math.exp(slope*i+offset) for i in x]
 #    return slope*x+offset+scale*(-2.*Q0*Qc + Qc**2. + Q0**2.*(1. + Qc**2.*(2.*a + b)**2.))/(Qc**2*(1. + 4.*Q0**2.*a**2.))
     return y * (-2. * Q0 * Qc + Qc ** 2. + Q0 ** 2. * (1. + Qc ** 2. * (2. * a + b) ** 2.)) / (
     Qc ** 2 * (1. + 4. * Q0 ** 2. * a ** 2.))
@@ -703,29 +703,31 @@ def fithanger(xdata, ydata, fitparams=None, domain=None, showfit=False, showstar
 
 def fithangertilt(xdata, ydata, fitparams=None, domain=None, showfit=False, showstartfit=False, printresult=False,
                   label="", mark_data='bo', mark_fit='r-'):
-    """Fit Hanger Transmission (S21) data taking into account asymmetry.
+    """Fit tilted Hanger Transmission (S21) data taking into account asymmetry.
         fitparams = []
-        returns p=[f0, Q, S21Min, Tmax]
+        returns p=[f0, Qi, Qc, df, slope, offset]
         Uses hangerfunctilt instead of hangerfunc. 
     """
+    
     if domain is not None:
         fitdatax,fitdatay = selectdomain(xdata,ydata,domain)
     else:
         fitdatax=xdata
         fitdatay=ydata
-        
+    
+    # determine initial fit parameters
     if fitparams is None:    
-        peakloc=np.argmin(fitdatay)
-        ymax=(fitdatay[0]+fitdatay[-1])/2.
-        ymin=fitdatay[peakloc]        
-        f0=fitdatax[peakloc]
-        Q0=abs(fitdatax[peakloc]/((max(fitdatax)-min(fitdatax))/3.))
-        Qi=Q0*(1.+ymax)
-        Qc=Qi/ymax
-        scale= ymax-ymin
-        slope = (fitdatay[-1]-fitdatay[0])/(fitdatax[-1]-fitdatax[0])
-        offset= ymin-slope*f0
-        fitparams=[f0,Qi,Qc,0.0001,slope, offset]
+        peakloc = np.argmin(fitdatay)
+        ymax    = (fitdatay[0]+fitdatay[-1])/2.
+        ymin    = fitdatay[peakloc]        
+        f0      = fitdatax[peakloc]
+        Q0      = abs(fitdatax[peakloc]/((max(fitdatax)-min(fitdatax))/3.))
+        Qi      = Q0*(1.+ymax)
+        Qc      = Qi/ymax
+        scale   = ymax-ymin
+        slope   = (fitdatay[-1]-fitdatay[0])/(fitdatax[-1]-fitdatax[0])
+        offset  = ymin-slope*f0
+        fitparams = [f0,Qi,Qc,0.0001,slope, offset]
         #print '--------------Initial Parameter Set--------------\nf0: {0}\nQi: {1}\nQc: {2}\ndf: {3}\nScale: {4}\nSlope: {5}\nOffset:{6}\n'.format(f0,Qi,Qc,0.,scale,slope, offset)
         
         fitresult = fitgeneral(fitdatax, fitdatay, hangerfunctilt, fitparams, domain=None, showfit=showfit,
