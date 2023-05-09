@@ -111,21 +111,17 @@ class VisaInstrument(Instrument):
             self.instrument = visa.ResourceManager().open_resource(address)
             self.instrument.timeout = timeout * 1000
 
-    # write to file
     def write(self, s):
         if self.enabled: self.instrument.write(self.encode_s(s))
 
-    # read from file
     def read(self, timeout=None):
         # todo: implement timeout, reference SocketInstrument.read
         if self.enabled: return self.instrument.read().decode()
 
-    # read encoded version from file
     def readb(self, timeout=None):
         # todo: implement timeout, reference SocketInstrument.read
         if self.enabled: return self.instrument.read()
 
-    # close file
     def close(self):
         if self.enabled: self.instrument.close()
 
