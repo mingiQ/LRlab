@@ -88,3 +88,5 @@ class DAC_CF:
         time.sleep(0.05)
         data = self.DAC.readline().rstrip()
         print(data)
+    def quit_dac(self):
+        self.DAC.close()
