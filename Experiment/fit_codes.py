@@ -147,8 +147,8 @@ def lorentzian_asym(f, f0, df, Qe, Q, scale):
     Asymmetric Lorentzian fit : Journal of Applied Physics 111, 054510 (2012)
 
     '''
-    denom = sqrt(1 + 4*Q**2*((f-f0)/f0)**2)
-    numerator = scale * sqrt((1-Q/Qe)**2+4*Q**2*((f-f0)/f0-Q*df/(Qe*f0))**2)
+    denom = np.sqrt(1 + 4*Q**2*((f-f0)/f0)**2)
+    numerator = scale * np.sqrt((1-Q/Qe)**2+4*Q**2*((f-f0)/f0-Q*df/(Qe*f0))**2)
     return numerator/denom
 
 
@@ -186,7 +186,7 @@ def decayrabifunc1(p, x):
     # Only one offset
 
 def rabiwidth(p, x):
-    return sqrt(p[1]**2*(x**2) + p[0]**2)
+    return np.sqrt(p[1]**2*(x**2) + p[0]**2)
 
 def rabisatfunc(p, x):
     return p[0] + x**2/(2*x**2 + 1/p[1] )
@@ -894,7 +894,7 @@ def fitrabiwidth(xdata,ydata,fitparams=None,domain=None,showfit=False,showstartf
         fitdatax=xdata
         fitdatay=ydata
     if fitparams is None:
-        fitparams=[sqrt((ydata[-1]-ydata[0])/(xdata[-1]-xdata[0])),ydata[0]]
+        fitparams=[np.sqrt((ydata[-1]-ydata[0])/(xdata[-1]-xdata[0])),ydata[0]]
     if debug==True: print(fitparams)
     p1 = fitgeneral(fitdatax, fitdatay, rabiwidth, fitparams, domain=None, showfit=showfit, showstartfit=showstartfit,
                     label=label)
