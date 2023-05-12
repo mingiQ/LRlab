@@ -45,7 +45,7 @@ class Thermo_leiden:
         self.cmd = 'quit'
         self.soc.send(self.cmd.encode())
         
-    def close_Tc(self):
+    def close_Tc(self):s
         self.cmd = 'close'
         self.soc.send(self.cmd.encode())
         
