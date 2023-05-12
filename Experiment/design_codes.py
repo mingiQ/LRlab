@@ -177,6 +177,12 @@ def vph(l ,L ,C, QWR):
     f = v/wavelen
     return (v, wavelen, f) 
 
+# In[1.5]: Fridge design parameters
+
+def nth(T, freq):
+    N = (np.exp(h*freq/(k_b*T))-1)**(-1)
+    return N
+  
 # In[2]: cpw design functions
 
 acad = Autocad(create_if_not_exists=True)

@@ -10,8 +10,19 @@ from numpy import log10, pi, absolute, sqrt
 
 # In[analysis codes]
 
-def data_extract(Path, file):
-    dat = np.loadtxt(Path+file, skiprows=23)
+def data_extract(Path, file, data_type):
+    skip = 23
+    
+    if data_type == 'anri':
+        skip = 23
+    elif data_type == 'son':
+        skip = 1
+    elif data_type == 'rfsoc':
+        skip = 2
+    elif data_type == 'pna':
+        skip = 8
+        
+    dat = np.loadtxt(Path+file, skiprows=skip)
     freq = dat[:,0]
     s21 = dat[:,3]
     phase = dat[:,4]
