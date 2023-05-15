@@ -141,12 +141,13 @@ def hangerfunctilt(p,x):
     return y * (-2. * Q0 * Qc + Qc ** 2. + Q0 ** 2. * (1. + Qc ** 2. * (2. * a + b) ** 2.)) / (
     Qc ** 2 * (1. + 4. * Q0 ** 2. * a ** 2.))
 
-def lorentzian_asym(f, f0, df, Qe, Q, scale):
+def lorentzian_asym(p, f):
     
     '''
     Asymmetric Lorentzian fit : Journal of Applied Physics 111, 054510 (2012)
 
     '''
+    f0, df, Qe, Q, scale = p
     denom = np.sqrt(1 + 4*Q**2*((f-f0)/f0)**2)
     numerator = scale * np.sqrt((1-Q/Qe)**2+4*Q**2*((f-f0)/f0-Q*df/(Qe*f0))**2)
     return numerator/denom
@@ -663,6 +664,62 @@ def fithanger_new_withQc(xdata, ydata, fitparams=None, domain=None, showfit=Fals
                                                                                                     fitresult[4]))
     return fitresult
 
+def fitasym_lorentzian(xdata, ydata, fitparams=None, domain=None, showfit=False, showstartfit=False,
+                         printresult=False, label="", mark_data='.', mark_fit='r-'):
+    
+    '''
+    data_folder : working directory
+    file: filename
+    guess : [freq, df, external Q, total Q, scale1, scale2]
+    span1 : fit region left
+    span2 : fit region right
+    
+    '''
+    
+    if domain is not None:
+        fitdatax,fitdatay = selectdomain(xdata,ydata,domain)
+    else:
+        fitdatax=xdata
+        fitdatay=ydata
+        
+    # determine initial fit parameters
+    if fitparams is None:    
+        peakloc = np.argmin(fitdatay)
+        ymax    = (fitdatay[0]+fitdatay[-1])/2.
+        ymin    = fitdatay[peakloc]        
+        f0      = fitdatax[peakloc]
+        Q0      = abs(fitdatax[peakloc]/((max(fitdatax)-min(fitdatax))/5.))
+        scale   = ymax-ymin
+        Q       = 3/4*Q0
+        Qc      = Q0
+        #slope = (fitdatay[-1]-fitdatay[0])/(fitdatax[-1]-fitdatax[0])
+        #offset= ymin-slope*f0
+        fitparams = [f0,0,abs(Qc),abs(Qc),scale]
+        
+    fitresult = fitgeneral(fitdatax, 10**(fitdatay/20), lorentzian_asym, fitparams, domain=None, showfit=showfit,
+                           showstartfit=showstartfit, label=label, mark_data=mark_data, mark_fit=mark_fit)
+    
+    
+    #fitresult[1] = abs(fitresult[1])
+    #fitresult[2] = abs(fitresult[2])
+    Q_loss = (fitresult[2]*fitresult[3])/(fitresult[2]-fitresult[3])
+    if showfit:
+        plt.plot(fitresult[0], lorentzian_asym(fitresult, fitresult[0]), 'go', markersize=15, label='fitted coupled Q = {}, \n fitted total Q ={} \n reson freq = {}GHz'.format(fitresult[2],
+                                                                                                                                                                                fitresult[3],
+                                                                                                                                                                                fitresult[0]))
+        plt.xlabel("frequency(GHz)")
+        plt.ylabel("S21(lin mag)")
+        plt.legend(loc='lower left')
+    if printresult: 
+        print(fitresult)
+        print('-- Fit Result --\nf0: {0}\ndf: {1}\nQc: {2}\nQloss: {3}\nQtot: {4}\nscale: {5}'.format(fitresult[0],
+                                                                                                    fitresult[1],
+                                                                                                    fitresult[2],
+                                                                                                    Q_loss,
+                                                                                                    fitresult[3],
+                                                                                                    fitresult[4]))
+    return fitresult
+        
 
 def fithanger(xdata, ydata, fitparams=None, domain=None, showfit=False, showstartfit=False, printresult=False, label="",
               mark_data='bo', mark_fit='r-'):
