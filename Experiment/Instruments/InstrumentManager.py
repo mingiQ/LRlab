@@ -1,289 +1,182 @@
-try:
-    import visa
-
-except Exception as e:
-    print(e)
-    print("Warning VISA library import failed")
-import telnetlib
+#import slab
+import os
+import sys
 import socket
-import time
+from optparse import OptionParser
 
 try:
-    import serial
+    import Pyro4
+    Pyro4Loaded = True
+    # Block calls from running simultaneously
+    Pyro4.config.SERVERTYPE = 'multiplex'
+    Pyro4.config.REQUIRE_EXPOSE = False
+    # Pyro4.config.HMAC_KEY = b'6551d449b0564585a9d39c0bd327dcf1'
+    Pyro4.config.SERIALIZER = "pickle"
+    Pyro4.config.SERIALIZERS_ACCEPTED=set(['json', 'marshal', 'serpent','pickle'])
 except ImportError:
-    print("Warning serial library import failed.")
+    print("Warning: Pyro4 package is not present")
+    print("Instrument Servers will not work.")
+    Pyro4Loaded = False
 
 
-class Instrument(object):
+class InstrumentManager(dict):
+    """InstrumentManager class reads configuration files and
+    keeps track of listed instruments and their settings
+    :param config_path: Path to configuration file
     """
-    A subclass of Instrument is an instrument which communicates over a certain
-    channel. The subclass must define the methods write and read, for
-    communication over that channel
-    """
-    address = ''  # Address of instrument
-    name = ''  # Instrument Name
-    enabled = False  # If enabled=False commands should not be sent
-    instrument_type = ''  # Instrument type
-    protocol = ''  # Protocol
-    id_string = ''  # id string
-    query_sleep = 0  # seconds to wait between write and read
-    term_char = '\n'  # character to be appended to all writes
+    def __init__(self, config_path=None, server=False, ns_address=None):
+        """Initializes InstrumentManager using config_path if available"""
+        dict.__init__(self)
+        self.config_path = config_path
+        self.config = None
+        self.ns_address = ns_address
+        #self.instruments={}
+        if not server and Pyro4Loaded:
+                try:
+                    #self.clean_nameserver()
+                    self.connect_proxies()
+                except Exception as e:
+                    print("Warning: Could not connect proxies!")
+                    print(e)
+        if config_path is not None:
+            self.load_config_file(config_path)
+        if server and Pyro4Loaded:
+                self.serve_instruments()
 
-    # operation_range={}        #map to hold the operation range
+    def line_is_comment_or_empty(self, line=""):
+        _line = line.strip();
+        if len(_line) == 0 or _line[0] == "#":
+            return True
+        else : return False
 
-    def __init__(self, name, address='', enabled=True, timeout=1, query_sleep=0):
+    def parse_config_string(self, line):
+        params = line.split();
+        name, instrument_class, address = params;
+        return name, instrument_class, address;
+
+    def load_config_file(self, config_path):
+        """Loads configuration file"""
+        print("Loaded Instruments: ", end=' ')
+        f = open(config_path, 'r')
+        for line in f.readlines():
+            isComment = self.line_is_comment_or_empty(line);
+            if not isComment:
+                name = self.parse_config_string(line)[0]
+                self[name] = self.load_instrument(line)
+        print("!")
+
+    def load_instrument(self, config_string):
+        """Loads instrument based on config_string (Name\tAddress\tType)"""
+        #print(config_string)
+        name, in_class, addr = self.parse_config_string(config_string);
+        fn = getattr(slab.instruments, in_class)
+        return fn(name=name, address=addr)
+
+    def __getattr__(self, item):
+        """Maps values to attributes.
+        Only called if there *isn't* an attribute with this name
         """
-        :param name:
-        :param address:
-        :param enabled:
-        :param timeout: timeout for low-level queries in seconds
-        :return:
-        """
-        self.name = name
-        self.address = address
-        self.enabled = enabled
-        self.timeout = timeout  # timeout for connection, different from timeout for query
-        self.query_sleep = query_sleep
+        try:
+            return self.__getitem__(item)
+        except KeyError:
+            raise AttributeError(item)
+            
+    def set_alias(self,name,alias):
+        """Sets an alias for an instrument"""
+        self[alias]=self[name]
 
-    def get_name(self):
-        return self.name
+    def serve_instruments(self):
+        """inst_dict is in form {name:instrument_instance}"""
+        Pyro4.config.SERVERTYPE = "multiplex"
+        daemon = Pyro4.Daemon(host=socket.gethostbyname(socket.gethostname()))
+        ns = Pyro4.locateNS(self.ns_address)
+        for name, instrument_instance in list(self.items()):
+            uri = daemon.register(instrument_instance)
+            ns.register(name, uri)
+            print("Registered: %s\t%s" % (name, uri))
+        daemon.requestLoop()
 
-    def get_id(self):
-        return "Default Instrument %s" % (self.name)
-
-    def encode_s(self, s):
-        if type(self.term_char) == str:
-            term_char = self.term_char.encode()
-        else:
-            term_char = self.term_char
-
-        if type(s) == str:
-            return s.encode() + term_char
-        else:
-            return s + term_char
-
-    def query(self, cmd, timeout=None):
-        self.write(cmd)
-        time.sleep(self.query_sleep)
-        return self.read(timeout)
-
-    def queryb(self, cmd, timeout=None):
-        self.write(cmd)
-        time.sleep(self.query_sleep)
-        return self.readb(timeout)
-
-    def set_timeout(self, timeout=None):
-        if timeout is not None:
-            self.timeout = timeout
-
-    def get_timeout(self):
-        return self.timeout
-
-    def set_query_sleep(self, query_sleep):
-        self.query_sleep = query_sleep
-
-    def get_query_sleep(self):
-        return self.query_sleep
+    def connect_proxies(self):
+        ns = Pyro4.locateNS(self.ns_address)
+        for name, uri in list(ns.list().items()):
+            self[name] = Pyro4.Proxy(uri)
 
     def get_settings(self):
-        settings = {}
-        settings['name'] = self.name
-        settings['address'] = self.address
-        settings['instrument_type'] = self.instrument_type
-        settings['protocol'] = self.protocol
+        """Get settings from all instruments"""
+        settings = []
+        for k, inst in self.items():
+            try:
+                settings.append(inst.get_settings())
+            except:
+                print("Warning! Could not get settings for instrument: %s" % k)
         return settings
 
-    def set_settings(self, settings):
-        print(settings)
-
-    def attr(self, name):
-        "re-naming of __getattr__ which is unavailable when proxied"
-        return getattr(self, name)
-
-
-class VisaInstrument(Instrument):
-    def __init__(self, name, address='', enabled=True, timeout=1.0, **kwargs):
-        Instrument.__init__(self, name, address, enabled, timeout, **kwargs)
-        if self.enabled:
-            self.protocol = 'VISA'
-            self.timeout = timeout
-            address = address.upper()
-            self.instrument = visa.ResourceManager().open_resource(address)
-            self.instrument.timeout = timeout * 1000
-
-    def write(self, s):
-        if self.enabled: self.instrument.write(self.encode_s(s))
-
-    def read(self, timeout=None):
-        # todo: implement timeout, reference SocketInstrument.read
-        if self.enabled: return self.instrument.read().decode()
-
-    def readb(self, timeout=None):
-        # todo: implement timeout, reference SocketInstrument.read
-        if self.enabled: return self.instrument.read()
-
-    def close(self):
-        if self.enabled: self.instrument.close()
-
-
-class TelnetInstrument(Instrument):
-    def __init__(self, name, address='', enabled=True, timeout=10):
-        Instrument.__init__(self, name, address, enabled, timeout, **kwargs)
-        self.protocol = 'Telnet'
-        if len(address.split(':')) > 1:
-            self.port = int(address.split(':')[1])
-        if self.enabled:
-            self.tn = telnetlib.Telnet(address.split(':')[0], self.port)
-
-    def write(self, s):
-        if self.enabled: self.tn.write(self.encode_s(s))
-
-    def read(self, timeout=None):
-        # todo: implement timeout, reference SocketInstrument.read
-        if self.enabled: return self.tn.read_some().decode()
-
-    def readb(self, timeout=None):
-        # todo: implement timeout, reference SocketInstrument.read
-        if self.enabled: return self.tn.read_some()
-
-    def close(self):
-        if self.enabled: self.tn.close()
-
-
-import select
-
-
-class SocketInstrument(Instrument):
-    default_port = 23
-
-    def __init__(self, name, address='', enabled=True, recv_length=1024, timeout=1.0, **kwargs):
-        Instrument.__init__(self, name, address, enabled, timeout, **kwargs)
-        self.protocol = 'socket'
-        self.recv_length = recv_length
-        if len(address.split(':')) > 1:
-            self.port = int(address.split(':')[1])
-            self.ip = address.split(':')[0]
+    def save_settings(self, path, prefix=None, params={}):
+        """Get settings from all instruments and save to a .cfg file"""
+        settings = self.get_settings()
+        settings.append(params)
+        if prefix:
+            fname = os.path.join(path, prefix)
         else:
-            self.ip = address
-            self.port = self.default_port
-        self.on_enable()
+            #print "hey"
+            fname = path
+        if ".cfg" not in fname.lower():
+            fname += '.cfg'
+        f = open(fname, 'w')
+        for s in settings:
+            f.write(repr(s))
+            f.write('\n')
+        f.close()
 
-    def on_enable(self):
-        if self.enabled:
-            self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            self.socket.connect((self.ip, self.port))
-            self.set_timeout(self.timeout)
-            self.socket.setblocking(0)
-
-    def set_enable(self, enable=True):
-        self.enabled = enable
-        self.on_enable()
-
-    def set_timeout(self, timeout):
-        Instrument.set_timeout(self, timeout)
-        if self.enabled: self.socket.settimeout(self.timeout)
-
-    def write(self, s):
-        if self.enabled: self.socket.send(self.encode_s(s))
-
-    # def query(self, s):
-    #     self.write(s)
-    #     time.sleep(self.query_sleep)
-    #     return self.read()
-
-    def read(self, timeout=None):
-        if timeout == None: timeout = self.timeout
-        ready = select.select([self.socket], [], [], timeout)
-        if (ready[0] and self.enabled):
-            return self.socket.recv(self.recv_length).decode()
-
-    def readb(self, timeout=None):
-        if timeout == None: timeout = self.timeout
-        ready = select.select([self.socket], [], [], timeout)
-        if (ready[0] and self.enabled):
-            return self.socket.recv(self.recv_length)
-
-    def read_line(self, eof_char=b'\n', timeout=None):
-        done = False
-        while done is False:
-            buffer_str = self.read(timeout)
-            # print "buffer_str", [buffer_str]
-            if buffer_str is None:
-                pass  # done = True
-            elif buffer_str[-len(eof_char):] == eof_char:
-                done = True
-                yield buffer_str
-            else:
-                yield buffer_str
-
-    def read_lineb(self, eof_char=b'\n', timeout=None):
-        done = False
-        while done is False:
-            buffer_str = self.readb(timeout)
-            # print "buffer_str", [buffer_str]
-            if buffer_str is None:
-                pass  # done = True
-            elif buffer_str[-len(eof_char):] == eof_char:
-                done = True
-                yield buffer_str
-            else:
-                yield buffer_str
-
-
-class SerialInstrument(Instrument):
-    # todo: the `baudrate` and `querysleep` need to be updated to band_rate and query_sleep
-    def __init__(self, name, address, enabled=True, timeout=1.0,
-                 recv_length=1024, baudrate=9600, query_sleep=1.0):
-        Instrument.__init__(self, name, address, enabled)
-        self.protocol = 'serial'
-        self.enabled = enabled
-        if self.enabled:
+    def clean_nameserver(self):
+        """Checks to make sure all of the names listed
+        in server are really there"""
+        ns = Pyro4.locateNS(self.ns_address)
+        for name, uri in list(ns.list().items()):
             try:
-                self.ser = serial.Serial(address, baudrate)
-            except serial.SerialException:
-                print('Cannot create a connection to port ' + str(address) + '.\n')
-        self.set_timeout(timeout)
-        self.recv_length = recv_length
-        self.query_sleep = query_sleep
+                proxy=Pyro4.Proxy(uri)
+                proxy._pyroTimeout = 0.1
+                proxy.get_id()
+            except:
+                ns.remove(name)
 
-    def set_timeout(self, timeout):
-        Instrument.set_timeout(self, timeout)
-        if self.enabled: self.ser.timeout = self.timeout
+def main(args):
+    parser=OptionParser()
+    parser.add_option("-f","--file",dest="filename",
+                      help="Config file to load",metavar="FILE")
+    parser.add_option("-s","--server",action="store_true",dest="server",
+                      default=False,help="Act as instrument server")
+    parser.add_option("-n","--nameserver","--ns_address",action="store",
+                      type="string",dest="ns_address",
+                      help="Address of name server (default auto-lookup)" )
+    parser.add_option("-g","--gui", action="store_true",dest="gui",default=False,
+                      help="Run Instrument Manager in gui mode")
+    parser.add_option("-i", action="store_true",dest="interact",default=False,
+                      help="interactive option not used.")
+    options,args=parser.parse_args(args)
 
-    def test(self):
-        self.ser.setTimeout(self.timeout)
-
-    def write(self, s):
-        if self.enabled: self.ser.write(self.encode_s(s))
-
-    def read(self, timeout=None):
-        # todo: implement timeout, reference SocketInstrument.read
-        if self.enabled: return self.ser.read(self.recv_length).decode()
-
-    def readb(self, timeout=None):
-        # todo: implement timeout, reference SocketInstrument.read
-        if self.enabled: return self.ser.read(self.recv_length)
-
-    def reset_connection(self):
-        self.ser.close()
-        time.sleep(self.query_sleep)
-        self.ser.open()
-
-    def flush(self):
-        self.ser.flush()
-        time.sleep(1)
-
-    def flush_input(self):
-        self.ser.flushInput()
-        time.sleep(1)
-
-    def flush_output(self):
-        self.ser.flushOutput()
-        time.sleep(1)
-
-    def __del__(self):
+    if options.gui:
+        sys.exit(slab.gui.runWin(InstrumentManagerWindow,filename=options.filename,nameserver=options.ns_address))
+    else:
+        im=InstrumentManager(config_path=options.filename,server=options.server,
+                             ns_address=options.ns_address)
+        globals().update(im)
+        globals()['im']=im
         try:
-            self.ser.close()
-        except Exception as e:
-            print(e)
-            print('cannot properly close the serial connection.')
+            globals()['plotter']=liveplot.LivePlotClient()
+        except:
+            print("Warning: Couldn't load liveplotter")
+
+if __name__ == "__main__":
+    try:
+        import slab.gui
+        from slab.instruments import InstrumentManagerWindow
+    except:
+        print("Warning: Could not import slab.gui or InstrumentManagerWindow!")
+    try:
+        import liveplot
+    except:
+        print("Warning: Could not load liveplot")
+
+
+    main(sys.argv[1:])
