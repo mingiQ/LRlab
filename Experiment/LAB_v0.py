@@ -172,11 +172,46 @@ class MLBPF:
 ## AMI430 magnet
 
 class AMI430:
-    def __init__(self, addr):       # COM7
-        self.magnet = serial.Serial(port=str(addr), baudrate=115200, timeout=None)
+    def __init__(self, addr):       # COM8: Bz COM6: By COM7: Bx
+        self.magnet = serial.Serial(port=str(addr), baudrate=115200, timeout=0.1)
         self.magnet.flushInput()
         self.magnet.flushOutput()
-        
+    def write_read(self, x):
+        self.magnet.write(str.encode(x+'\n'))
+        time.sleep(0.05)
+        data = self.magnet.readline().rstrip()
+        print(data)
+    def self_test(self):
+        self.magnet.write(str.encode('*TST?\n'))
+        time.sleep(0.05)
+        data = self.magnet.readline().rstrip()
+        print(data)
+    def idn(self):
+        self.magnet.write(str.encode('*IDN?\n'))
+        time.sleep(0.05)
+        data = self.magnet.readline().rstrip()
+        print(data)
+    def debug(self):
+        self.magnet.write(str.encode('SYSTem:ERRor?\n'))
+        time.sleep(0.05)
+        data = self.magnet.readline().rstrip()
+        print(data)
+    def current_limit(self):
+        self.magnet.write(str.encode('CURRent:LIMit?\n'))
+        time.sleep(0.05)
+        data = self.magnet.readline().rstrip()
+        print(data+'A')
+    def unit_set(self, cmd):
+        if cmd == 'T':
+            com = 1
+        elif cmd == 'kG':
+            com = 0
+        else:
+            print('type proper unit')
+            
+        self.magnet.write(str.encode('CONFigure:FIELD:UNITS' + str(com)))
+        print('unit set to '+cmd)    
+    
         
 ## DAC LR 
 class DAC_CF:
@@ -714,6 +749,42 @@ class SingleToneSpectroscopyProgram(AveragerProgram):
 
     
 
+# for phase calibration
+ 
+class SingleFreqProgram(AveragerProgram):
+    def __init__(self,soccfg, cfg):
+        super().__init__(soccfg, cfg)
+
+    def initialize(self):
+        cfg    = self.cfg
+        soccfg = self.soccfg
+        
+        # configure the readout lengths and downconversion frequencies
+        for ch in range(2):
+            self.declare_readout(ch=ch, length=self.cfg["readout_length"],
+                                 freq=self.cfg["pulse_freq"])
+
+        idata = 30000*np.ones(16*cfg["length"])
+
+        for ch in self.cfg['out_ch']:
+            self.declare_gen(ch=ch, nqz=1)
+            self.add_pulse(ch=ch, name="measure", idata=idata)
+        
+        freq=soccfg.freq2reg(cfg["pulse_freq"])  # convert frequency to dac frequency
+        self.trigger(pins=[0], t=0) # send a pulse on pmod0_0, for scope trigger
+        for ch in self.cfg['out_ch']:
+            self.set_pulse_registers(ch=ch, style="arb", freq=freq, phase=cfg["res_phase"], gain=cfg["pulse_gain"], 
+                                     waveform="measure", mode="periodic")
+
+        self.synci(200)  # give processor some time to configure pulses
+    
+    def body(self):
+        self.trigger(adcs=[0,1],adc_trig_offset=self.cfg["adc_trig_offset"])  # trigger the adc acquisition
+        for ch in self.cfg['out_ch']:
+            self.pulse(ch=ch, t=0) # play readout pulse
+        self.wait_all() # control should wait until the readout is over
+        self.sync_all(200)  # wait for measurement to complete
+        
         
 
             
