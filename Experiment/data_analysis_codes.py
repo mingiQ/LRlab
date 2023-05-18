@@ -10,6 +10,19 @@ from numpy import log10, pi, absolute, sqrt
 
 # In[analysis codes]
 
+def data_sorting():
+    sweepfiles = os.listdir(wdir)
+
+    sweeplist = [x for x in sweepfiles if "DAT" in x]
+    fieldlist = []
+    for files in sweeplist: fieldlist.append(float(files.split('_')[2].split('mT')[0]))
+
+    #print(fieldlist)
+
+    fieldlist, sweeplist = zipsort(fieldlist, sweeplist)
+    
+    return fieldlist, sweeplist
+
 def data_extract(Path=True, file=True, data_type=False, delimiter=','):    
     skip = 23
     
@@ -276,7 +289,7 @@ def densityplot_2d(x_data, y_data, z_data, colormap, label_x, label_y, label_z):
      
          Z[y,:] = z_data[y]
  
-     plt.pcolormesh(X,Y,Z, cmap='inferno')
+     plt.pcolormesh(X,Y,Z, cmap=colormap)
      plt.xlabel('Frequency(GHz)')
      plt.ylabel('power(dBm)')
      plt.colorbar(label="S21(dB)")
