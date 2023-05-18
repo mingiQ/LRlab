@@ -10,7 +10,7 @@ from numpy import log10, pi, absolute, sqrt
 
 # In[analysis codes]
 
-def data_extract(Path, file, data_type):    
+def data_extract(Path=True, file=True, data_type=False, delimiter=','):    
     skip = 23
     
     if data_type == 'anri':
@@ -27,6 +27,127 @@ def data_extract(Path, file, data_type):
     s21 = dat[:,3]
     phase = dat[:,4]
     return (freq, s21, phase)
+
+'''
+helpder functions for RFSoC phase calibration
+
+'''
+############################################################################################
+
+def calculate_phase(d):
+    [xi,xq] = d
+    x = xi +1j*xq
+
+    # Average to improve calibration.
+    xavg = np.mean(x)
+
+    # Calculate calibration phase.
+    fi = np.remainder(np.angle(xavg,deg=True)+360,360)
+    return [fi, np.abs(xavg), np.std(x)]
+
+
+def phase_residuals(data,prediction):
+    '''
+    (data - pred + pi) mod 2pi ; returns the difference between data and pred
+    '''
+    r = np.remainder(data-prediction+180,360)-180
+    return r
+    
+def phase_model(x, f0):
+    '''
+    x = [x0, x1] , 
+    x0 : phase offset, x1 : ADC delay
+    (x0 - 2pi*x1*f0) mod 2pi
+    '''
+    return np.remainder(x[0] - 360*x[1]*(f0), 360)
+
+def phase_func(x, arg, freq):
+    '''
+    difference b/w data and phase drag due to the ADC delay = real signal
+    '''
+    resid = phase_residuals(arg, phase_model(x, freq))
+    return resid
+
+################################################################################################
+
+def sweep_fit():
+    '''
+    fitting large amount of data - useful for field/power sweep
+    todo : define parameters 
+    
+    '''
+    
+    sweepfiles = os.listdir(wdir_fieldsweep)
+
+    sweeplist = [x for x in sweepfiles if "DAT" in x]
+    fieldlist = []
+    for files in sweeplist: fieldlist.append(float(files.split('_')[2].split('mT')[0]))
+
+    #print(fieldlist)
+
+    fieldlist, sweeplist = zipsort(fieldlist, sweeplist)
+
+    flist = []
+    qlist = []
+    qinlist = []
+    qexlist = []
+    
+    no = 23
+    
+    for files in sweeplist[:no]:
+    
+        data = data_extract(Path=wdir_fieldsweep, file=files, data_type='rfsoc')
+        
+        xdata = data[0][17:]
+        ydata_raw = data[1][17:]
+        ydata = 10*np.log10(ydata_raw)
+        
+        f0 = xdata[np.argmin(ydata_raw)]
+        print(f0)
+        
+        title = files.split('_')[2]
+        
+        plt.figure(figsize=(10,5))
+        p = fithanger_new_withQc(xdata, ydata, fitparams=[f0, 10000, 5000, 0, 50], domain=None, showfit=True, showstartfit=False,
+                                 printresult=True, label=title+"mT", mark_data='bo', mark_fit='r-')
+        
+        
+        Q_tot = (p[2]*p[1])/(p[2]+p[1])
+        
+        flist.append(p[0])
+        qexlist.append(p[2])
+        qinlist.append(p[1])
+        
+        qlist.append(Q_tot)
+        
+    fitsavedata = np.hstack((np.array([fieldlist[:no]]).T, np.array([flist]).T, np.array([qexlist]).T,np.array([qinlist]).T))
+    np.savetxt(fname='//lrgrouphd2.physics.purdue.edu/usr/Mingi Kim/Resonators/230510_Leiden_Mount/fieldsweep_RFSoC/fits/BzvsQ_fit_results.DAT' , X=fitsavedata, delimiter= ',', header='Bz(mT), f0(MHz), Qex, Qint')
+        
+    plt.figure(figsize=(5,5))
+    plt.plot(fieldlist[:no], flist, '.')
+    plt.xlabel('Bz(mT)')
+    plt.ylabel('Freq(MHz)')
+    
+    plt.figure(figsize=(10,5))
+    
+    ax1 = plt.subplot(1,2,1)
+    ax1.plot(fieldlist[:no], qexlist, 'b.')
+    ax1.set_xlabel('Bz(mT)')
+    ax1.set_ylabel(r"$Q_{ex}$")
+    
+    ax2 = plt.subplot(1,2,2)
+    ax2.plot(fieldlist[:no], qinlist, 'rx')
+    ax2.set_xlabel('Bz(mT)')
+    ax2.set_ylabel(r"$Q_{in}$")
+    
+    return fitsavedata
+
+
+#################################################################################################
+'''
+all fitting codes will be moved to dsfit.py
+
+'''
 
 def lorentzian(f, f0, Qe, Q, N):
     return N-(Q/Qe)**2/(1 + 4*Q**2*((f-f0)/f0)**2)
@@ -90,6 +211,8 @@ def fitting_asym(data_folder, file, guess, span1, span2):
     print(popt)
     print('reson freq = {}GHz,\n fitted coupled Q = {}, \n fitted total Q ={}, \n loss Q = {}'.format(popt[0], popt[2], popt[3], inver(popt[2], popt[3])))
     return(popt[0], popt[3], popt[2])
+
+##############################################################################################
 
 def cross_correlate(dat1, dat2, step, scan_range, correlat_path, filename):
 
