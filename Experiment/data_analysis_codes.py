@@ -23,6 +23,11 @@ def data_sorting():
     
     return fieldlist, sweeplist
 
+def dBmtoPhoton(power, freq):
+    h = 6.62607015e-34
+    n = 10**(power/10)/h*freq
+    return n
+
 def data_extract(Path=True, file=True, data_type=False, delimiter=','):    
     skip = 23
     
