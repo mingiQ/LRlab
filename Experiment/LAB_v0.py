@@ -6,7 +6,7 @@ import socket
 import json
 import time
 import sys
-sys.path.append('Z:/Mingi Kim/FPGA/qick/qick_lib')
+sys.path.append('Z:/general/LRlabcode/QICK/qick/qick_lib')
 from qick import QickConfig
 import Pyro4
 
@@ -41,11 +41,17 @@ class Thermo_leiden:
         repl = self.soc.recv(1024)
         return float(repl)
     
+    def debug(self):
+        self.cmd = 'decode'
+        self.soc.send(self.cmd.encode())
+        repl = self.soc.recv(1024)
+        return repl
+    
     def quit_Tc(self):
         self.cmd = 'quit'
         self.soc.send(self.cmd.encode())
         
-    def close_Tc(self):s
+    def close_Tc(self):
         self.cmd = 'close'
         self.soc.send(self.cmd.encode())
         
@@ -109,6 +115,15 @@ class nanovolt:
     #     v = np.float_(np.fromstring(x,dtype=float,sep=' '))
     #     self._gpib.write(':SENS:VOLT:REF 0:STAT 1' +  str(v) + 'ACQ')
     
+
+### Aeroflex programmable attenuatros
+class Aeroflex:
+    def __init__(self, addr):
+        self._gpib = rm.open_resource('GPIB::'+str(addr)+'::INSTR')
+    def set_ch(self, ch, val):
+        self._gpib.write(f'ATTN CH{ch} {val}')
+    def read_ch(self, ch):
+        return (self._gpib.query(f'ATTN? CH{ch}'))
     
 ### Keysight 34461A digital voltmeter
 class DMM:
@@ -167,11 +182,16 @@ class MLBPF:
         print(data)
     def quit_bpf(self):
         self.arduino.close()
-        
+     
 
 ## AMI430 magnet
 
 class AMI430:
+    '''
+    ​X	​2042 Ohm	​2020 Ohm	​2.0 A/min	​​0.036 T/min	​0.01825_T/A	​	​	​
+    ​Y	​2079 Ohm	​2056 Ohm	​2.0 A/min	0.036 T/min	0.01803_T/A	​	​	​
+    ​Z	​1572 Ohm	1555 Ohm​	​1.4 A/min	0.165 T/min​	​0.1164_T/A​	​0.05mApp=0.006mTpp	​	​-0.8mA=-0.09mT
+    '''
     def __init__(self, addr):       # COM8: Bz COM6: By COM7: Bx
         self.magnet = serial.Serial(port=str(addr), baudrate=115200, timeout=0.1)
         self.magnet.flushInput()
@@ -190,7 +210,7 @@ class AMI430:
         self.magnet.write(str.encode('*IDN?\n'))
         time.sleep(0.05)
         data = self.magnet.readline().rstrip()
-        print(data)
+        print(data.decode())
     def debug(self):
         self.magnet.write(str.encode('SYSTem:ERRor?\n'))
         time.sleep(0.05)
@@ -200,7 +220,7 @@ class AMI430:
         self.magnet.write(str.encode('CURRent:LIMit?\n'))
         time.sleep(0.05)
         data = self.magnet.readline().rstrip()
-        print(data+'A')
+        print(data.decode()+'A')
     def unit_set(self, cmd):
         if cmd == 'T':
             com = 1
@@ -209,9 +229,104 @@ class AMI430:
         else:
             print('type proper unit')
             
-        self.magnet.write(str.encode('CONFigure:FIELD:UNITS' + str(com)))
-        print('unit set to '+cmd)    
+        self.magnet.write(str.encode('CONFigure:FIELD:UNITS ' + str(com)+'\n'))
+        self.magnet.write(str.encode('FIELD:UNITS?\n'))
+        time.sleep(0.05)
+        ind = self.magnet.readline().rstrip()
+        unit = ['kG', 'T']
+        
+        print('unit set to '+ unit[int(ind.decode())-1]) 
+        
+    def coilconst(self):
+        self.magnet.write(str.encode('COILconst? \n'))  #  0.1164 T/A
+        time.sleep(0.05)
+        cc = self.magnet.readline().rstrip()
+        print(cc.decode() + 'T/A')
+        
+    def set_field(self, field):
+        '''
+        Require coil constant
+        ----------
+        field : in Tesla or kG
+
+        Returns
+        set b field in tesla or kG and print the set field
+        -------
+        '''
+        self.magnet.write(str.encode('CONFigure:FIELD:TARGet '+str(field)+'\n'))
+        self.magnet.write(str.encode('FIELD:TARGet?\n'))
+        time.sleep(0.05)
+        target = self.magnet.readline().rstrip()
+        print("set field: " + target.decode() + 'T')
+        
+    def set_ramping(self, seg, rate, upper_bound):
+        self.magnet.write(str.encode(f'CONFigure:FIELD:TARGet {seg} {rate} {upper_bound}\n'))
+        self.magnet.write(str.encode(f'RAMP:RATE:FIELD:{seg}?\n'))
+        time.sleep(0.05)
+        target = self.magnet.readline().rstrip()
+        print(target.decode())
     
+    def start_ramping(self):
+        self.magnet.write(str.encode(f'RAMP\n'))
+# =============================================================================
+#         ans = input("Ready to ramp?: ")
+#         if ans == 'y':
+#             self.magnet.write(str.encode(f'RAMP\n'))
+#         else:
+#             pass
+# =============================================================================
+        
+    def pause(self):
+        self.magnet.write(str.encode(f'PAUSE\n'))
+        
+    def current_rateunit(self):
+        self.magnet.write(str.encode('RAMP:RATE:UNITS?\n'))
+        time.sleep(0.05)
+        unit = self.magnet.readline().rstrip()
+        options = ['per sec', 'per min']
+        print(options[int(unit.decode())])
+            
+    def current_rate(self, seg):
+        self.magnet.write(str.encode(f'RAMP:RATE:FIELD:{seg}?\n'))
+        time.sleep(0.05)
+        rate = self.magnet.readline().rstrip()
+        print(rate.decode()+' T')
+        
+    def current_target(self):
+        self.magnet.write(str.encode('FIELD:TARGet?\n'))
+        time.sleep(0.05)
+        target = self.magnet.readline().rstrip()
+        print("target field: " + target.decode() + 'T')
+        
+    def current_field(self):
+        self.magnet.write(str.encode(f'FIELD:MAGnet? \n'))
+        time.sleep(0.05)
+        field = self.magnet.readline().rstrip()
+        print(field.decode()+' T')
+    
+    def current_status(self):
+        self.magnet.write(str.encode(f'STATE? \n'))
+        time.sleep(0.05)
+        status = self.magnet.readline().rstrip()
+        ind = int(status.decode())-1
+        
+        window = ['RAMPING to target field/current',
+                  'HOLDING at the target field/current',
+                  'PAUSED',
+                  'Ramping in MANUAL UP mode',
+                  'Ramping in MANUAL DOWN mode',
+                  'ZEROING CURRENT (in progress)',
+                  'Quench detected',
+                  'At ZERO current',
+                  'Heating persistent switch',
+                  'Cooling persistent switch'
+                    ]
+        
+        print(window[ind])
+    
+    def quit_magnet(self):
+        self.magnet.close()
+     
         
 ## DAC LR 
 class DAC_CF:
@@ -294,6 +409,8 @@ class DAC_CF:
         time.sleep(0.05)
         data = self.DAC.readline().rstrip()
         print(data)
+    def quit_dac(self):
+        self.DAC.close()
 # =============================================================================
 # # In[debug]:
 # DAC = serial.Serial(port="COM4", baudrate=115200, timeout=0)
@@ -310,10 +427,6 @@ class DAC_CF:
 # 
 # =============================================================================
 
-
-    
-        
-#   "WF dac val val"           -> "WF"              - set single dac value (float)
         
         
 
@@ -356,7 +469,7 @@ class MS2038:
         self._gpib.write(':SENS:SWE:IFBW ' + str(p))  # must be one of 100000|50000|20000|10000|5000|2000|1000|500|200|100|50|20|10
         self._gpib.baud_rate = 57600
     def points(self, p):
-        self._gpib.write(':SENSe:SWE:POINt ' + str(p))
+        self._gpib.write(':SENSe:SWEep:POINts ' + str(p))
         self._gpib.baud_rate = 57600
     def minimum(self):
         mini = self._gpib.write(':CALCulate:MARKer 1 :MINimum')
@@ -403,6 +516,7 @@ class MS2038:
         with open(path+filename,'w') as f:
             f.write(data[data.index('!'):])
             
+
 # =============================================================================
 #             
 # # In[anritz debug]
@@ -443,6 +557,7 @@ class MS2038:
 # 
 # # In[]
 # =============================================================================
+
 
         
 ### Keysight E5071C vector network analyzer
@@ -526,6 +641,50 @@ class E5071C:
 #     
 # # In[]
 # =============================================================================
+
+# Copper Mountain VNA
+
+class CMT:
+    def __init__(self):
+        RM =  pyvisa.ResourceManager('C:/Windows/System32/visa32.dll')
+        self._gpib = RM.open_resource('TCPIP0::127.0.0.1::5025::SOCKET')
+    
+    def start(self, freq):
+        p = numtostr(freq)
+        self._gpib.write(':SENS1:FREQ:STAR '+p+' \n')
+    def stop(self, freq):
+        p = numtostr(freq)
+        self._gpib.write(':SENS1:FREQ:STOP '+p+' \n')
+    def points(self, pnts):
+        p = numtostr(pnts)
+        self._gpib.write(':SENS1:SWE:POIN '+p+' \n')
+    def avgcount(self, avg):
+        p = numtostr(avg)
+        self._gpib.write('SENS1:AVER:COUN' +p+' \n')
+    def avgclear(self):
+        self._gpib.write('SENS1:AVER:CLE \n')
+    def IFBW(self, freq):
+        p = numtostr(freq)
+        self._gpib.write(':SENS1:BWID '+p+' \n')
+    def power(self, po):
+        p = numtostr(po)
+        self._gpib.write(':SOUR:POW '+p+' dBm \n')
+    def sweep(self, mode):
+        if mode == 'single':
+            self._gpib.write(':INIT  \n')
+            self._gpib.write(':TRIG:SOUR BUS \n')
+            self._gpib.write(':TRIG:SEQ:SING \n')
+    def save_s2p(self, filename):
+        self._gpib.write(':MMEM:STOR:SNP \"test2.s2p\" \n')
+        self._gpib.timeout = 120000
+        with open("C:/Program Files/S2VNA/FixtureSim/test2.s2p", 'r') as source, open(filename, 'w') as target:
+            for line in source:
+                target.write(line)
+        
+        
+        
+        
+
 #SR lock-in amplifier
 
 class SR830:
@@ -676,6 +835,63 @@ class SinglePulse(AveragerProgram):
                      syncdelay=self.us2cycles(self.cfg["relax_delay"]))
         
 
+class LoopbackProgram_sendpulse_readpulse(AveragerProgram):
+    def initialize(self):
+        cfg=self.cfg   
+        res_ch = cfg["res_ch"]
+
+        # set the nyquist zone
+        self.declare_gen(ch=cfg["res_ch"], nqz=1)
+        
+        # configure the readout lengths and downconversion frequencies (ensuring it is an available DAC frequency)
+        for ch in cfg["ro_chs"]:
+            self.declare_readout(ch=ch, length=self.cfg["readout_length"],
+                                 freq=self.cfg["pulse_freq"], gen_ch=cfg["res_ch"])
+
+        # convert frequency to DAC frequency (ensuring it is an available ADC frequency)
+        freq = self.freq2reg(cfg["pulse_freq"],gen_ch=res_ch, ro_ch=cfg["ro_chs"][0])
+        phase = self.deg2reg(cfg["res_phase"], gen_ch=res_ch)
+        gain = cfg["pulse_gain"]
+        self.default_pulse_registers(ch=res_ch, freq=freq, phase=phase, gain=gain)
+
+        style=self.cfg["pulse_style"]
+
+        if style in ["flat_top","arb"]:
+            sigma = cfg["sigma"]
+            self.add_gauss(ch=res_ch, name="measure", sigma=sigma, length=sigma*5)
+            
+        if style == "const":
+            self.set_pulse_registers(ch=res_ch, style=style, length=cfg["length"])
+        elif style == "flat_top":
+            # The first half of the waveform ramps up the pulse, the second half ramps down the pulse
+            self.set_pulse_registers(ch=res_ch, style=style, waveform="measure", length=cfg["length"])
+        elif style == "arb":
+            self.set_pulse_registers(ch=res_ch, style=style, waveform="measure")
+        
+        self.synci(200)  # give processor some time to configure pulses
+    
+    def body(self):
+        # fire the pulse
+        # trigger all declared ADCs
+        # pulse PMOD0_0 for a scope trigger
+        # pause the tProc until readout is done
+        # increment the time counter to give some time before the next measurement
+        # (the syncdelay also lets the tProc get back ahead of the clock)
+        self.measure(pulse_ch=self.cfg["res_ch"], 
+                     adcs=self.ro_chs,
+                     pins=[0], 
+                     adc_trig_offset=self.cfg["adc_trig_offset"],
+                     wait=True,
+                     syncdelay=self.us2cycles(self.cfg["relax_delay"]))
+        
+        # equivalent to the following:
+#         self.trigger(adcs=self.ro_chs,
+#                      pins=[0], 
+#                      adc_trig_offset=self.cfg["adc_trig_offset"])
+#         self.pulse(ch=self.cfg["res_ch"])
+#         self.wait_all()
+#         self.sync_all(self.us2cycles(self.cfg["relax_delay"]))
+
 class LoopbackProgram(AveragerProgram):
     def initialize(self):
         cfg=self.cfg   
@@ -747,8 +963,6 @@ class SingleToneSpectroscopyProgram(AveragerProgram):
              syncdelay=self.us2cycles(self.cfg["relax_delay"]))  
     
 
-    
-
 # for phase calibration
  
 class SingleFreqProgram(AveragerProgram):
@@ -784,7 +998,6 @@ class SingleFreqProgram(AveragerProgram):
             self.pulse(ch=ch, t=0) # play readout pulse
         self.wait_all() # control should wait until the readout is over
         self.sync_all(200)  # wait for measurement to complete
-        
         
 
             

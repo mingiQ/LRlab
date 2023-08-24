@@ -7,45 +7,45 @@ import time
 from scipy.optimize import curve_fit
 from numpy import log10, pi, absolute, sqrt
 
+sys.path.append('Z:/general/LRlabcode/LRlab/Experiment')
+
+from fit_codes import *
 
 # In[analysis codes]
 
-def data_sorting():
-    sweepfiles = os.listdir(wdir)
-
-    sweeplist = [x for x in sweepfiles if "DAT" in x]
-    fieldlist = []
-    for files in sweeplist: fieldlist.append(float(files.split('_')[2].split('mT')[0]))
-
-    #print(fieldlist)
-
-    fieldlist, sweeplist = zipsort(fieldlist, sweeplist)
-    
-    return fieldlist, sweeplist
-
-def dBmtoPhoton(power, freq):
-    h = 6.62607015e-34
-    n = 10**(power/10)/h*freq
-    return n
-
-def data_extract(Path=True, file=True, data_type=False, delimiter=','):    
+def data_extract(Path, file, data_type):    
     skip = 23
     
     if data_type == 'anri':
         skip = 23
+        dat = np.loadtxt(Path+file, skiprows=skip)
+        s21 = dat[:,3]
+        phase = dat[:,4]
     elif data_type == 'son':
         skip = 1
+        dat = np.loadtxt(Path+file, skiprows=skip)
+        s21 = dat[:,3]
+        phase = dat[:,4]
     elif data_type == 'rfsoc':
         skip = 2
+        dat = np.loadtxt(Path+file, skiprows=skip, delimiter=',')
+        s21 = dat[:,1]
+        phase = dat[:,2]
     elif data_type == 'pna':
         skip = 8
+        dat = np.loadtxt(Path+file, skiprows=skip)
+        s21 = dat[:,3]
+        phase = dat[:,4]
+    elif data_type == 'cmt':
+        skip = 5
+        dat = np.loadtxt(Path+file, skiprows=skip)
+        s21 = dat[:,3]
+        phase = dat[:,4]
         
-    dat = np.loadtxt(Path+file, skiprows=skip)
+    
     freq = dat[:,0]
-    s21 = dat[:,3]
-    phase = dat[:,4]
+    
     return (freq, s21, phase)
-
 '''
 helpder functions for RFSoC phase calibration
 
@@ -87,85 +87,6 @@ def phase_func(x, arg, freq):
     return resid
 
 ################################################################################################
-
-def sweep_fit():
-    '''
-    fitting large amount of data - useful for field/power sweep
-    todo : define parameters 
-    
-    '''
-    
-    sweepfiles = os.listdir(wdir_fieldsweep)
-
-    sweeplist = [x for x in sweepfiles if "DAT" in x]
-    fieldlist = []
-    for files in sweeplist: fieldlist.append(float(files.split('_')[2].split('mT')[0]))
-
-    #print(fieldlist)
-
-    fieldlist, sweeplist = zipsort(fieldlist, sweeplist)
-
-    flist = []
-    qlist = []
-    qinlist = []
-    qexlist = []
-    
-    no = 23
-    
-    for files in sweeplist[:no]:
-    
-        data = data_extract(Path=wdir_fieldsweep, file=files, data_type='rfsoc')
-        
-        xdata = data[0][17:]
-        ydata_raw = data[1][17:]
-        ydata = 10*np.log10(ydata_raw)
-        
-        f0 = xdata[np.argmin(ydata_raw)]
-        print(f0)
-        
-        title = files.split('_')[2]
-        
-        plt.figure(figsize=(10,5))
-        p = fithanger_new_withQc(xdata, ydata, fitparams=[f0, 10000, 5000, 0, 50], domain=None, showfit=True, showstartfit=False,
-                                 printresult=True, label=title+"mT", mark_data='bo', mark_fit='r-')
-        
-        
-        Q_tot = (p[2]*p[1])/(p[2]+p[1])
-        
-        flist.append(p[0])
-        qexlist.append(p[2])
-        qinlist.append(p[1])
-        
-        qlist.append(Q_tot)
-        
-    fitsavedata = np.hstack((np.array([fieldlist[:no]]).T, np.array([flist]).T, np.array([qexlist]).T,np.array([qinlist]).T))
-    np.savetxt(fname='//lrgrouphd2.physics.purdue.edu/usr/Mingi Kim/Resonators/230510_Leiden_Mount/fieldsweep_RFSoC/fits/BzvsQ_fit_results.DAT' , X=fitsavedata, delimiter= ',', header='Bz(mT), f0(MHz), Qex, Qint')
-        
-    plt.figure(figsize=(5,5))
-    plt.plot(fieldlist[:no], flist, '.')
-    plt.xlabel('Bz(mT)')
-    plt.ylabel('Freq(MHz)')
-    
-    plt.figure(figsize=(10,5))
-    
-    ax1 = plt.subplot(1,2,1)
-    ax1.plot(fieldlist[:no], qexlist, 'b.')
-    ax1.set_xlabel('Bz(mT)')
-    ax1.set_ylabel(r"$Q_{ex}$")
-    
-    ax2 = plt.subplot(1,2,2)
-    ax2.plot(fieldlist[:no], qinlist, 'rx')
-    ax2.set_xlabel('Bz(mT)')
-    ax2.set_ylabel(r"$Q_{in}$")
-    
-    return fitsavedata
-
-
-#################################################################################################
-'''
-all fitting codes will be moved to dsfit.py
-
-'''
 
 def lorentzian(f, f0, Qe, Q, N):
     return N-(Q/Qe)**2/(1 + 4*Q**2*((f-f0)/f0)**2)
@@ -230,8 +151,6 @@ def fitting_asym(data_folder, file, guess, span1, span2):
     print('reson freq = {}GHz,\n fitted coupled Q = {}, \n fitted total Q ={}, \n loss Q = {}'.format(popt[0], popt[2], popt[3], inver(popt[2], popt[3])))
     return(popt[0], popt[3], popt[2])
 
-##############################################################################################
-
 def cross_correlate(dat1, dat2, step, scan_range, correlat_path, filename):
 
     sum_range = np.arange(-scan_range,scan_range+1,1)
@@ -294,11 +213,41 @@ def densityplot_2d(x_data, y_data, z_data, colormap, label_x, label_y, label_z):
      
          Z[y,:] = z_data[y]
  
-     plt.pcolormesh(X,Y,Z, cmap=colormap)
+     plt.pcolormesh(X,Y,Z, cmap='inferno')
      plt.xlabel('Frequency(GHz)')
      plt.ylabel('power(dBm)')
      plt.colorbar(label="S21(dB)")
     
+def powersweepresult(Path, flist):
+    polist = [float(x.split('_')[1].split('dBm')[0]) for x in flist]
+    slist = []
+
+    
+    for i,file in enumerate(flist):
+        
+        vnadata = data_extract(Path=Path, file=file, data_type='cmt')
+    
+        s21 = vnadata[1]
+        slist.append(s21)
+        if i == 0:
+            freq = vnadata[0]
+        else:
+            pass
+        
+    power, sparams = zipsort(polist, slist)
+        
+    plt.figure(figsize=(18,5))   
+        
+    densityplot_2d(x_data=freq/1e9, y_data=power, z_data=sparams, colormap='inferno', label_x='frequency(GHz)', label_y='Probe power(dBm)', label_z='S21(dB)')
+    
+    plt.figure(figsize=(12,5))
+    [plt.plot(freq/1e9, x, alpha=0.5, label='{}dBm'.format(power[i])) for i,x in enumerate(sparams)]
+    plt.xlabel('Frequency(GHz)')
+    plt.ylabel('S21(dB)')
+    plt.legend(loc='center left', bbox_to_anchor=(1, 0.5))
+    
+    return freq, power, slist
+
 
 # In[correlation fucntion between spectra]
 # =============================================================================
