@@ -172,3 +172,20 @@ def vph(l ,L ,C, QWR):
     wavelen = totlen*4/QWR
     f = v/wavelen
     return (v, wavelen, f) 
+
+'''
+resonator Qc extract based on HFSS analysis
+
+ref: Microwave Circuit Analysis of Multi Transmon Qubit System - jonathan delft ms thesis eq 5.1
+
+'''
+def Qc_qwr(Zl, Z0, fres, Cfr):
+    '''
+    Zl : resonator impedance
+    Z0 : feedline impedance
+    fres : resonance frequency
+    Cfr : capacitance between feedline & resonator
+    '''
+    omega_res = 2*np.pi*fres
+    Q = 2*np.pi/(4*Zl*Z0*(omega_res*Cfr)**2)
+    return Q
