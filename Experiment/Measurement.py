@@ -8,22 +8,15 @@ sys.path.append('Z:/Mingi Kim/python_codes')
 import LAB_v0
 import data_analysis_codes
 
-# =============================================================================
-# # In[1]: import xilinx SoC
-#     
-# xilinx = LAB_v0.RFSoC()
-# 
-# # In[1.5]: import RF instruments (anritsu, SoC and SoC Configuration)
-# 
-# vna = LAB_v0.MS2038('192.168.0.105')
-# 
-# soccfg = xilinx.socconfig()[1]  # SoC configuration
-# soc = xilinx.socconfig()[0]   # SoC 
-# =============================================================================
-
 # In[measurement function]
 
-def S21trans(start, stop, pnts, IF, avg, meas_t, path, name):
+########################################################################################
+'''
+Anritsu measurement
+
+'''
+
+def S21trans(vna, start, stop, pnts, IF, avg, meas_t, path, name):
     '''
     Anritsu VNA code
     ----------
@@ -49,33 +42,113 @@ def S21trans(start, stop, pnts, IF, avg, meas_t, path, name):
     filename = path+name
     
     vna.avgclear()
+    vna.sweep('single')
     time.sleep(meas_t)
     vna.save_s2p(filename)
     
-def visualS21(start, stop, pnts, IF, avg, meas_t, path, name):
-    S21trans(start, stop, pnts, IF, avg, meas_t, path, name)
-    dat = data_extract(wdir, name)
-    plt.figure(figsize=(8,4))
-    plt.plot(dat[0], dat[1])
-    plt.xlabel("Frequency(GHz)")
-    plt.ylabel("S21(dB)")
-
-def VNA(fstart, fstop, fstep, pgain, configs, wdir):
+def visualS21(vna, start, stop, pnts, IF, avg, meas_t, path, name):
     
+    S21trans(vna, start, stop, pnts, IF, avg, meas_t, path, name)
+    dat = data_extract(path, name, 'anri')
+
+    freq = dat[0]
+    s21 = dat[1]
+    phases = dat[2]
+    
+    
+    plt.figure(figsize=(20,15))
+    plt.subplot(221,title="DUT", xlabel="Frequency (GHz)", ylabel="S21(dB)")
+    plt.plot(freq, s21)
+    #max_freq=fpts[np.argmax(amps)]
+    
+    plt.subplot(222, title="phase", xlabel='Frequency', ylabel='Phase(degree)')
+    plt.plot(freq, phases, '-')
+    
+    plt.subplot(212, projection='polar')
+    #plt.axes(projection='polar')
+    plt.plot(phases*np.pi/180, 10**(s21/20), '.')
+    plt.grid(True)
+    plt.show() 
+    
+    
+def frequency_sweep(vna, f_init, f_fin, scan_range, pnts, IF, avg, t, name, wdir):
+
+    freq_list = np.arange(f_init, f_fin, scan_range/2)
+    
+    for freq in freq_list:
+        f_start = (freq-scan_range/2)*1e9
+        f_stop = (freq+scan_range/2)*1e9
+    
+        visualS21(vna=vna, start=f_start, stop=f_stop, pnts=pnts, IF=IF, avg=avg, meas_t=t, path=wdir, name=name+'near_{}GHz.s2p'.format(freq))
+        print("{}Hz scan completed\n".format(f_start))
+    
+###############################################################################################
+
+'''
+RF SoC measurement
+
+'''
+
+def ADCcal(soc, config, offset, num):
+
+    avglistv2 = []
+    stdlistv2 = []
+    attlistv2 = []
+    
+    for i in range(num):
+        
+        att.set_ch(1,i+offset)
+        attlistv2.append(i+offset)
+        #print(i+ 'att \n')
+        
+        prog=LAB_v0.LoopbackProgram_sendpulse_readpulse(soccfg, config)
+        iq_list = prog.acquire_decimated(soc, load_pulses=True, progress=True, debug=False)
+        
+        mag_sq = iq_list[0][0][200-100:200+100]**2 + iq_list[0][1][200-100:200+100]**2
+        mag = np.sqrt(mag_sq)
+        
+        avgmag = np.average(mag)
+        stdmag = np.std(mag)
+        
+        print(i, avgmag, stdmag)
+        
+        avglistv2.append(avgmag)
+        stdlistv2.append(stdmag)
+    
+    plt.figure(figsize=(10,5))
+    plt.plot(attlistv2, avglistv2)
+    plt.figure(figsize=(10,5))
+    plt.plot(attlistv2, stdlistv2)
+    plt.figure(figsize=(10,5))
+    plt.plot(attlistv2, np.array(avglistv2)/np.array(stdlistv2))
+    plt.title('SNR = avg/std')
+    
+    return (avglistv2, stdlistv2, attlistv2)
+    
+
+def VNA(soccfg, soc, gen, ro, rolen, fstart, fstop, fstep, pgain, configs, cal, wdir):
     
     '''
     RFSoC transmission measurement (ADC) ---> measure ADC level (arb)
+    gen: gen_ch
+    ro: ro_ch
+    rolen: readout length (us)
     
     '''
-    hw_cfg={"ro_ch":1,   # ADC_D
-        "res_ch":1    # DAC_B
+    gench = np.array(['B', 'A'])
+    roch = np.array(['D', 'C'])
+    
+    hw_cfg={"ro_ch" : ro,  # np.where(gench==ro)[0][0],   # ADC_D
+        "res_ch"    : gen    # np.where(roch==gen)[0][0]    # DAC_B
        }
+    
     readout_cfg={
-        "readout_length":soccfg.us2cycles(3.0, gen_ch=0), # [Clock ticks]
+        "readout_length":soccfg.us2cycles(rolen, gen_ch=gen), # [Clock ticks]
         "res_phase": 0,
         "adc_trig_offset": 275, # [Clock ticks]
         "res_gain_start":pgain
         }
+    
     expt_cfg={"reps":500, "relax_delay":10,
               "start":fstart, "stop":fstop, "step":fstep,
               "gain_step" : 0.1
@@ -111,12 +184,14 @@ def VNA(fstart, fstop, fstep, pgain, configs, wdir):
     amps=np.array(amps)
     Is = np.array(inphase)
     Qs = np.array(quad)
+    phase_calibrated = phase_func(cal, phases, fpts)
     
     filename = '{}MHz to {}MHz pow {}adc_level'.format(fstart, fstop, pgain)+configs
     
-    data = np.hstack((np.transpose([fpts]), np.transpose([amps]), np.transpose([phases]), np.transpose([Is]), np.transpose([Qs])))
+    data = np.hstack((np.transpose([fpts]), np.transpose([amps]), np.transpose([phase_calibrated]), np.transpose([Is]), np.transpose([Qs])))
     np.savetxt(wdir+filename, data, delimiter=',', header='freq,Amp,Phase,I,Q\nMHz,V,Deg,V,V', comments='')
     
+    # magindBm = (np.log(np.array(cal1[0])) - 5.637457678659047)/0.11333629477649314 - 2.3
         
     plt.figure(figsize=(20,15))
     plt.subplot(221,title="DUT", xlabel="Frequency (MHz)", ylabel="Amp. (adc level)")
@@ -124,13 +199,54 @@ def VNA(fstart, fstop, fstep, pgain, configs, wdir):
     max_freq=fpts[np.argmax(amps)]
     
     plt.subplot(222, title="phase", xlabel='Frequency', ylabel='Phase(degree)')
-    plt.plot(fpts, phases, '-')
+    plt.plot(fpts, phase_calibrated, '-')
     
     plt.subplot(212, projection='polar')
     #plt.axes(projection='polar')
-    plt.plot(phases, amps, '.')
+    plt.plot(phase_calibrated*np.pi/180, amps, '.-')
     plt.grid(True)
     plt.show()
+    
+def resonator_spectroscopy(f_init, f_fin, f_step, temp, soccfg, soc, gen, ro, rolen, fstep, pgain, phcal, wdir):    
+    
+    flist = np.arange(f_init, f_fin, 0.8*f_step)
+    
+    for f in flist:
+        f_start = f-f_step/2
+        f_stop = f+f_step/2
+        VNA(soccfg=soccfg, soc=soc, gen=gen, ro=ro, rolen=rolen, fstart=f_start, fstop=f_stop, fstep=fstep, pgain=pgain, 
+            configs=temp+'_{}MHz.DAT'.format(f), cal=phcal, wdir=wdir) 
+        
+    list_temp = [x for x in os.listdir(wdir) if "DAT" and temp in x]
+    freq_list = [x.split('_')[3].split('MHz')[0] for x in list_temp]
+    
+    list_temp_sort = zipsort(freq_list, list_temp)
+    
+    plt.figure(figsize=(10,5))
+    plt.title(temp+' transmission')
+    for dat in list_temp_sort[1]:
+        spec = data_extract(Path=wdir, file=dat, data_type='rfsoc')
+        plt.plot(spec[0], 20*np.log10(spec[1]), 'b-')
+    plt.xlabel('Frequency(MHz)')
+    plt.ylabel(r'Transmission $10*log_10(V_{adc}^2)$')  
+
+def bfieldsweep(magnet, blo, bhi, bstep, ramptime, soccfg, soc, gen, ro, fstart, fstop, fstep, gain, temperature, inputpo, phcal, path):
+    Bzlist1 = np.arange(0, bhi, bstep)
+    Bzlist2 = np.arange(bhi, -blo, -bstep)
+    Bzlist3 = np.arange(-blo, bhi, bstep)
+    
+    Bzlist = np.hstack((Bzlist1, Bzlist2, Bzlist3))
+    
+    #Bz.set_ramping(seg=1, rate=0.00005, upper_bound=1)
+    
+    for bz in Bzlist:
+        
+        magnet.set_field(bz)
+        
+        time.sleep(ramptime)
+        
+        VNA(soccfg=soccfg, soc=soc, gen=gen, ro=ro, fstart=fstart, fstop=fstop, fstep=fstep, pgain=gain, 
+        configs='_{}mT_{}mK_input_{}dBm.DAT'.format(bz*1000, temperature, inputpo), cal=fitx, wdir=wdir_fieldsweep_RFSoC_new)
 
 # =============================================================================
 # # In[5] measurement code

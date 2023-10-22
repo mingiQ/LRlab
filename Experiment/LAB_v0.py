@@ -41,11 +41,17 @@ class Thermo_leiden:
         repl = self.soc.recv(1024)
         return float(repl)
     
+    def debug(self):
+        self.cmd = 'decode'
+        self.soc.send(self.cmd.encode())
+        repl = self.soc.recv(1024)
+        return repl
+    
     def quit_Tc(self):
         self.cmd = 'quit'
         self.soc.send(self.cmd.encode())
         
-    def close_Tc(self):s
+    def close_Tc(self):
         self.cmd = 'close'
         self.soc.send(self.cmd.encode())
         
