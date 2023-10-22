@@ -129,6 +129,18 @@ def hangerfunc_new_withQc(p,x):
     (Qc + Qi) ** 2 + 4. * Qi ** 2. * Qc ** 2. * a ** 2.))
     return y
 
+def hangerfunc_circle(p,x):
+    '''
+    Parameters
+    ----------
+    p : []
+    x : frequency
+    Returns
+    -------
+    None.
+
+    '''
+
 def hangerfunctilt(p,x):
     """Ge Editing  p=[f0,Qi,Qc,df,scale,slope, offset] linmag"""
     f0, Qi, Qc, df, slope, offset = p
