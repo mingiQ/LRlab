@@ -224,7 +224,8 @@ def I_A(Delta_sc, tau, phi):
 
 def gc(tau, phi, M, Zr, fr, Delta_sc):
     E_a = E_A(Delta_sc, tau, phi)
-    return np.sqrt(z(M, Zr, fr))*E_a/2*(Delta_sc/E_a - E_a/Delta_sc)
+    E_a_pi = E_A(Delta_sc, tau, np.pi)
+    return np.sqrt(z(M, Zr, fr))*E_a_pi/2*(Delta_sc/E_a - E_a/Delta_sc)
 
 def eigen_ABS_JC(n_ph, tau, phi, M, Zr, fr, Delta_sc):
     d = 2*E_A(Delta_sc, tau, phi) - fr
