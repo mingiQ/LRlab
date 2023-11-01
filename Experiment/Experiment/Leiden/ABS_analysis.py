@@ -16,7 +16,7 @@ from scipy.constants import h, e
 # In[Andreev level visualization]
 
 Delta = 20.8e9 # GHz
-tau = 0.96   # balistic junction
+tau = 0.98   # balistic junction
 
 phi_list = np.linspace(0, 2, 100)
 plt.plot(phi_list, [E_A(Delta, tau, ph*pi)/1e9 for ph in phi_list], label=r'$\left| e \right\rangle$')
@@ -47,7 +47,7 @@ plt.xlabel(r"$\phi/\pi$")
 plt.ylabel(r"$I_A$(nA)")
 
 # In[Jaynes-Cummings approx.]
-M = 10e-12
+M = 1e-12
 Zr = 50
 fr = 6e9
 
@@ -60,7 +60,7 @@ plt.figure(figsize=(8,8))
 plt.title("ABS-cavity photon eigenenergy soultion\n from Jaynes-Cummings Hamiltonian")
 
 plt.plot(ph, [eigen_ABS_JC(nph, tau, x*np.pi, M, Zr, fr, Delta) for x in ph ])
-plt.plot(ph, [eigen_ABS_JC(nph+1, tau, x*np.pi, M, Zr, fr, Delta) for x in ph ])
+plt.plot(ph, [eigen_ABS_JC(nph+2, tau, x*np.pi, M, Zr, fr, Delta) for x in ph ])
 plt.annotate(r'photon mode : {}'.format(nph)+'\n'+
              r'$\tau$ : {}'.format(tau)+' \n'+
              ' M : {} pH '.format(M*1e12)+'\n'+
