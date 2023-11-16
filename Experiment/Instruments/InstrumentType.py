@@ -108,8 +108,11 @@ class VisaInstrument(Instrument):
             self.protocol = 'VISA'
             self.timeout = timeout
             address = address.upper()
-            self.instrument = visa.ResourceManager().open_resource(address)
+            self.instrument = pyvisa.ResourceManager().open_resource(address)
             self.instrument.timeout = timeout * 1000
+
+    def _query(self, s):
+        if self.enabled: return(self.instrument.query(self.encode_s(s)))    
 
     def write(self, s):
         if self.enabled: self.instrument.write(self.encode_s(s))

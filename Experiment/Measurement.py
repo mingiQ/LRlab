@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 
 sys.path.append('Z:/Mingi Kim/python_codes')
 import LAB_v0
-import data_analysis_codes
+from data_analysis_codes import *
 
 # In[measurement function]
 
@@ -49,7 +49,13 @@ def S21trans(vna, start, stop, pnts, IF, avg, meas_t, path, name):
 def visualS21(vna, start, stop, pnts, IF, avg, meas_t, path, name):
     
     S21trans(vna, start, stop, pnts, IF, avg, meas_t, path, name)
-    dat = data_extract(path, name, 'anri')
+    
+    if vna != 'cmt':
+        dat = data_extract(path, name, 'anri')
+       
+    elif vna == 'cmt':
+        dat = data_extract(path, name, 'cmt')
+   
 
     freq = dat[0]
     s21 = dat[1]

@@ -1,14 +1,12 @@
 # In[0] : necessary packages
-import numpy as np
-import pyvisa
-import serial
-import socket
-import json
-import time
 import sys
+sys.path.append('Z:/general/LRlabcode/LRlab')
+from Experiment.Instruments.InstrumentType import SerialInstrument
+
+
 
 ## DAC LR 
-class DAC_CF:
+class DAC_CF(SerialInstrument):
     '''
     !!! different from BPF, PySerial requires '\n' at the end of the command!!!!! (2023/5/9)
         /*    ------ communication commands ---------
@@ -68,25 +66,43 @@ class DAC_CF:
      *    
      *    "IRQ"                                           - sets IRQready=false at a serial interrupt level
     '''
-    def __init__(self, addr):       # COM4
-        self.DAC = serial.Serial(port=str(addr), baudrate=115200, timeout=None)
-        self.DAC.flushInput()
-        self.DAC.flushOutput()
-    def write_read(self, x):                    # CAUTION: all the command should end with '\n'
-        self.DAC.write(bytes( x +'\n', 'utf-8'))
-        time.sleep(0.05)
-        #data = self.arduino.readline().decode('utf-8').rstrip()
-        data = self.DAC.readline().rstrip()
-        print(data)
+    def __init__(self, name='LRdac', address='COM4', enabled=True, timeout=0.1, baudrate=115200):
+        SerialInstrument.__init__(self, name, address, enabled, timeout, baudrate)
+        self.flush_input()
+        self.flush_output()
+    
     def idn(self):
-        self.DAC.write(bytes('*IDN?\n', 'utf-8'))
-        time.sleep(0.05)
-        data = self.DAC.readline().rstrip()
-        print(data)
+        self.write('*IDN?')
+        return self.read(timeout=self.timeout)
+    
     def voltsweep(self, dac_CF, volt):
-        self.DAC.write(bytes("WF "+ str(dac_CF) +" "+ str(volt) +" "+ str(volt)+"\n", 'utf-8'))
-        time.sleep(0.05)
-        data = self.DAC.readline().rstrip()
+        self.write(f"WF {dac_CF} {volt} {volt}")
+        data = self.read(timeout=self.timeout)
         print(data)
-    def quit_dac(self):
-        self.DAC.close()
+    
+    
+# =============================================================================
+#     
+#     def __init__(self, addr):       # COM4
+#         self.DAC = serial.Serial(port=str(addr), baudrate=115200, timeout=None)
+#         self.DAC.flushInput()
+#         self.DAC.flushOutput()
+#     def write_read(self, x):                    # CAUTION: all the command should end with '\n'
+#         self.DAC.write(bytes( x +'\n', 'utf-8'))
+#         time.sleep(0.05)
+#         #data = self.arduino.readline().decode('utf-8').rstrip()
+#         data = self.DAC.readline().rstrip()
+#         print(data)
+#     def idn(self):
+#         self.DAC.write(bytes('*IDN?\n', 'utf-8'))
+#         time.sleep(0.05)
+#         data = self.DAC.readline().rstrip()
+#         print(data)
+#     def voltsweep(self, dac_CF, volt):
+#         self.DAC.write(bytes("WF "+ str(dac_CF) +" "+ str(volt) +" "+ str(volt)+"\n", 'utf-8'))
+#         time.sleep(0.05)
+#         data = self.DAC.readline().rstrip()
+#         print(data)
+#     def quit_dac(self):
+#         self.DAC.close()
+# =============================================================================

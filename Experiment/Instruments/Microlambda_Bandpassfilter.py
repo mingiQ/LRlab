@@ -1,14 +1,12 @@
 # In[0] : necessary packages
-import numpy as np
-import pyvisa
-import serial
-import socket
-import json
-import time
 import sys
+sys.path.append('Z:/general/LRlabcode/LRlab')
+from Experiment.Instruments.InstrumentType import SerialInstrument
+
+
 
 ## MicroLambda bandpass filter
-class MLBPF:
+class MLBPF(SerialInstrument):
     '''
         /*    ------ communication commands ---------
      *     serial @ 115200, line end character: \n
@@ -22,30 +20,21 @@ class MLBPF:
      *    "TT pin"                   -> "TT"              - toggle pin
     */
     '''
-    def __init__(self, addr):
-        self.arduino = serial.Serial(port=str(addr), baudrate=115200, timeout=None)
-        self.arduino.flushInput()
-        self.arduino.flushOutput()
-    def write_read(self, x):
-        self.arduino.write(bytes(x, 'utf-8'))
-        time.sleep(0.05)
-        #data = self.arduino.readline().decode('utf-8').rstrip()
-        data = self.arduino.readline().rstrip()
-        print(data)
+    def __init__(self, name="MLBandPassfilter", address='COM10', enabled=True, timeout=0.1, baudrate=115200):
+        SerialInstrument.__init__(self, name, address, enabled, timeout, baudrate)
+        self.flush_input()
+        self.flush_output()
+        
     def idn(self):
-        self.arduino.write(bytes('?', 'utf-8'))
-        time.sleep(0.05)
-        data = self.arduino.readline().rstrip()
-        print(data)
+        return self.query('?')
+    
     def freq(self, f):
-        self.arduino.write(bytes('FF' + ' ' + str(f), 'utf-8'))
-        time.sleep(0.05)
-        data = self.arduino.readline().rstrip()
-        print(data)
+        return self.query(f'FF {f}')
+    
     def debug(self, f):
-        self.arduino.write(bytes('FH' + ' ' + str(f), 'utf-8'))
-        time.sleep(0.05)
-        data = self.arduino.readline().rstrip()
-        print(data)
-    def quit_bpf(self):
-        self.arduino.close()
+        return self.query(f'FH {f}')
+    
+
+# In[test]
+
+bp = MLBPF(direction='z')

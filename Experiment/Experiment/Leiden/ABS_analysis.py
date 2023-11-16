@@ -47,7 +47,7 @@ plt.xlabel(r"$\phi/\pi$")
 plt.ylabel(r"$I_A$(nA)")
 
 # In[Jaynes-Cummings approx.]
-M = 1e-12
+M = 0.8e-12
 Zr = 50
 fr = 6e9
 
@@ -70,7 +70,7 @@ plt.annotate(r'photon mode : {}'.format(nph)+'\n'+
 plt.xlabel(r"reduced phase $\varphi/\pi$")
 plt.ylabel(r"transition energy ($E_t/f_r$)")
 # In[]
-ph = np.linspace(0.97, 1.03, 100)
+ph = np.linspace(0.9775, 0.985, 100)
 plt.figure(figsize=(8,8))
 plt.title("ABS-cavity photon eigenenergy soultion\n from Jaynes-Cummings Hamiltonian")
 
@@ -88,4 +88,26 @@ plt.ylabel(r"transition energy ($E_t/f_r$)")
 # In[]
 
 plt.plot(ph, [eigen_ABS_JC(nph, tau, x*np.pi, M, Zr, fr, 45e9)[0]-eigen_ABS_JC(nph, tau, x*np.pi, M, Zr, fr, 45e9)[1] for x in ph ])
+
+# In[debug]
+
+def eigen_ABS_JC_debug(n_ph, tau, phi, M, Zr, fr, Delta_sc):
+    d = 2*E_A(Delta_sc, tau, phi) - fr
+    Ep = 0 + (n_ph+1/2)*fr + np.sqrt(gc(tau, phi, M, Zr, fr, Delta_sc)**2+d**2/4))/(fr)
+    Em = 0 + (n_ph+1/2)*fr - np.sqrt(gc(tau, phi, M, Zr, fr, Delta_sc)**2+d**2/4))/(fr)
+    return Ep, Em
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 

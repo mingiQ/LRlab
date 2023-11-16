@@ -1,22 +1,41 @@
 # In[0] : necessary packages
-import numpy as np
-import pyvisa
-import serial
-import socket
-import json
-import time
 import sys
+sys.path.append('Z:/general/LRlabcode/LRlab')
+from Experiment.Instruments.InstrumentType import VisaInstrument
+
 
 ## Anritsu MS2038C VNA master  ''' TCPIP[board]::host address[::LAN device name][::INSTR] '''
 ## TCP/IP = 192.168.0.105
 ## Tested in / RFstation pc / CF room pc /
 
-rm = pyvisa.ResourceManager()
-def numtostr(mystr):
-    return '%20.15e' % mystr
+# =============================================================================
+# rm = pyvisa.ResourceManager()
+# def numtostr(mystr):
+#     return '%20.15e' % mystr
+# =============================================================================
 
 
-class MS2038:
+class MS2038(VisaInstrument):
+    
+    def __init__(self, name='MS2038c', address='TCPIP::192.168.0.105::INSTR', enabled=True, timeout=0.1):
+        VisaInstrument.__init__(self, name, address, enabled)
+        self.query_sleep=1
+        self.recv_length=65536
+        self.term_char=''
+   
+    def get_id(self):
+         return self._query('*IDN?')
+   
+    
+   
+    
+   
+    
+   
+
+# In[]    
+   
+    
    
     def __init__(self, addr):
         self._gpib = rm.open_resource('TCPIP::'+str(addr)+'::INSTR')
