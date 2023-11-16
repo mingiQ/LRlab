@@ -1,18 +1,11 @@
 # In[0] : necessary packages
 import sys
+import time
 sys.path.append('Z:/general/LRlabcode/LRlab')
 from Experiment.Instruments.InstrumentType import VisaInstrument
 
 
 ## Anritsu MS2038C VNA master  ''' TCPIP[board]::host address[::LAN device name][::INSTR] '''
-## TCP/IP = 192.168.0.105
-## Tested in / RFstation pc / CF room pc /
-
-# =============================================================================
-# rm = pyvisa.ResourceManager()
-# def numtostr(mystr):
-#     return '%20.15e' % mystr
-# =============================================================================
 
 
 class MS2038(VisaInstrument):
@@ -23,69 +16,56 @@ class MS2038(VisaInstrument):
         self.recv_length=65536
         self.term_char=''
    
-    def get_id(self):
-         return self._query('*IDN?')
-   
-    
-   
-    
-   
-    
-   
-
-# In[]    
-   
-    
-   
-    def __init__(self, addr):
-        self._gpib = rm.open_resource('TCPIP::'+str(addr)+'::INSTR')
-    def mode(self, mod): 
-        self._gpib.write(':INST[:SEL] ' + str(mod))  # SPA : spectrum analyzer, MWVNA: vector network analyzer
-        #self._gpib.baud_rate = 57600
-        return(self._gpib.query(':INST?'))
-    def __del__(self):
-        self._gpib.close()
     def idn(self):
-        return(self._gpib.query('*IDN?'))
-    def avgclear(self):
-        self._gpib.write(':SENS:AVER:CLE')
-    def avgcount(self, p):
-        self._gpib.write(':SENS:AVER:COUN ' + str(p))
+         return self.instrument.query('*IDN?')
+         
+    def mode(self, mod): 
+        self.instrument.write(':INST[:SEL] ' + str(mod))  # SPA : spectrum analyzer, MWVNA: vector network analyzer
+        #self._gpib.baud_rate = 57600
+        return(self.instrument.query(':INST?'))
+    
     def start(self, p):
-        self._gpib.write(':SENS:FREQ:STAR ' + str(p))
-        self._gpib.baud_rate = 57600
+        self.instrument.write(':SENS:FREQ:STAR ' + str(p))
+        self.instrument.baud_rate = 57600
     def stop(self, p):
-        self._gpib.write(':SENS:FREQ:STOP ' + str(p))
-        self._gpib.baud_rate = 57600
+        self.instrument.write(':SENS:FREQ:STOP ' + str(p))
+        self.instrument.baud_rate = 57600
     def startq(self):
-        st = self._gpib.query(':SENS:FREQ:STAR?')
+        st = self.instrument.query(':SENS:FREQ:STAR?')
         print(st)
+    def IFBW(self, p):
+        self.instrument.write(':SENS:SWE:IFBW ' + str(p))  # must be one of 100000|50000|20000|10000|5000|2000|1000|500|200|100|50|20|10
+        self.instrument.baud_rate = 57600
+    def points(self, p):
+        self.instrument.write(':SENSe:SWE:POINt ' + str(p))
+        self.instrument.baud_rate = 57600
+    
+    def avgclear(self):
+        self.instrument.write(':SENS:AVER:CLE')
+    def avgcount(self, p):
+        self.instrument.write(':SENS:AVER:COUN ' + str(p))
+   
     def sweep(self, sweeptype):
         if sweeptype =='single':
-            self._gpib.write(':INITiate:HOLD OFF')
-            self._gpib.write(':SENSe:SWEep:TYPE SINGle')
+            self.instrument.write(':INITiate:HOLD OFF')
+            self.instrument.write(':SENSe:SWEep:TYPE SINGle')
         elif sweeptype == 'cont':
-            self._gpib.write(':INITiate:HOLD OFF')
-            self._gpib.write(':SENSe:SWEep:TYPE CONTinuous')  # defalut val
-    def IFBW(self, p):
-        self._gpib.write(':SENS:SWE:IFBW ' + str(p))  # must be one of 100000|50000|20000|10000|5000|2000|1000|500|200|100|50|20|10
-        self._gpib.baud_rate = 57600
-    def points(self, p):
-        self._gpib.write(':SENSe:SWE:POINt ' + str(p))
-        self._gpib.baud_rate = 57600
+            self.instrument.write(':INITiate:HOLD OFF')
+            self.instrument.write(':SENSe:SWEep:TYPE CONTinuous')  # defalut val
+    
     def minimum(self):
-        mini = self._gpib.write(':CALCulate:MARKer 1 :MINimum')
+        mini = self.instrument.write(':CALCulate:MARKer 1 :MINimum')
         print(mini)
     def save_s2p(self, filename): #save s2p file
-        self._gpib.write(':MMEMory:MSIS INTernal')                  # VERY important to define temp data storage first!
-        self._gpib.timeout = 120000                                 # Anritsu is really lazy.. give it sufficient time to respond...:( 
-        self._gpib.write(':MMEM:STOR:TRAC 4, \"tempdata\"')
-        self._gpib.baud_rate = 57600
+        self.instrument.write(':MMEMory:MSIS INTernal')                  # VERY important to define temp data storage first!
+        self.instrument.timeout = 120000                                 # Anritsu is really lazy.. give it sufficient time to respond...:( 
+        self.instrument.write(':MMEM:STOR:TRAC 4, \"tempdata\"')
+        self.instrument.baud_rate = 57600
         time.sleep(1)
-        self._gpib.timeout = 120000
-        data = self._gpib.query(':MMEM:DATA? \"tempdata.s2p\"')
-        self._gpib.baud_rate = 57600
-        self._gpib.timeout = 120000
+        self.instrument.timeout = 120000
+        data = self.instrument.query(':MMEM:DATA? \"tempdata.s2p\"')
+        self.instrument.baud_rate = 57600
+        self.instrument.timeout = 120000
         time.sleep(2)
         data = data.replace('\r','')
         data = data[data.index('!'):]
@@ -95,14 +75,14 @@ class MS2038(VisaInstrument):
             
     def save_trace(self,filename):
         temp = time.strftime("%d%b%Y%H%M%S", time.localtime())
-        self._gpib.write(':MMEMory:MSIS INTernal')
-        self._gpib.timeout = 120000     
-        self._gpib.write(':MMEM:STOR:TRAC 0,\"'+str(temp)+'\"')
-        self._gpib.baud_rate = 57600
-        self._gpib.timeout = 120000   
-        data = self._gpib.query(':MMEMory:DATA? \"'+str(temp)+'.spa\"')
-        self._gpib.baud_rate = 57600
-        self._gpib.timeout = 120000
+        self.instrument.write(':MMEMory:MSIS INTernal')
+        self.instrument.timeout = 120000     
+        self.instrument.write(':MMEM:STOR:TRAC 0,\"'+str(temp)+'\"')
+        self.instrument.baud_rate = 57600
+        self.instrument.timeout = 120000   
+        data = self.instrument.query(':MMEMory:DATA? \"'+str(temp)+'.spa\"')
+        self.instrument.baud_rate = 57600
+        self.instrument.timeout = 120000
         data = data.replace('\r','')
         data = data.replace('MHz', '')
         data = data.replace('=', ',')
@@ -112,8 +92,14 @@ class MS2038(VisaInstrument):
             f.write(data.replace('P_', ''))
             
     def transfer(self, filename, path): # transfer internal memory to pc
-        data = self._gpib.query(':MMEM:DATA? \"'+ filename +'\"')
+        data = self.instrument.query(':MMEM:DATA? \"'+ filename +'\"')
         data = data.replace('\r','')
         data = data[data.index('!'):]
         with open(path+filename,'w') as f:
             f.write(data[data.index('!'):])
+    
+# In[]
+
+vna = MS2038()   
+print(vna.idn())    
+   
