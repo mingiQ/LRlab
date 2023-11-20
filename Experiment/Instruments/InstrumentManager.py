@@ -1,4 +1,7 @@
-#import slab
+import sys
+import time
+sys.path.append('Z:/general/LRlabcode/LRlab')
+import Experiment
 import os
 import sys
 import socket
@@ -19,13 +22,21 @@ except ImportError:
     Pyro4Loaded = False
 
 
+
+
 class InstrumentManager(dict):
     """InstrumentManager class reads configuration files and
     keeps track of listed instruments and their settings
     :param config_path: Path to configuration file
     """
     def __init__(self, config_path=None, server=False, ns_address=None):
-        """Initializes InstrumentManager using config_path if available"""
+        """Initializes InstrumentManager using config_path if available
+       params: 
+           config_path : instrument configuration path
+           server : Pyro4 instrumentation server  -> default = False
+           ns_address : Pyro4 nameserver address -> 
+        
+        """
         dict.__init__(self)
         self.config_path = config_path
         self.config = None
@@ -34,7 +45,7 @@ class InstrumentManager(dict):
         if not server and Pyro4Loaded:
                 try:
                     #self.clean_nameserver()
-                    self.connect_proxies()
+                    self.connect_proxies()          # locate Pyro4 nameserver uri list
                 except Exception as e:
                     print("Warning: Could not connect proxies!")
                     print(e)
@@ -69,7 +80,7 @@ class InstrumentManager(dict):
         """Loads instrument based on config_string (Name\tAddress\tType)"""
         #print(config_string)
         name, in_class, addr = self.parse_config_string(config_string);
-        fn = getattr(slab.instruments, in_class)
+        fn = getattr(Experiment.Instruments, in_class)
         return fn(name=name, address=addr)
 
     def __getattr__(self, item):
@@ -97,7 +108,7 @@ class InstrumentManager(dict):
         daemon.requestLoop()
 
     def connect_proxies(self):
-        ns = Pyro4.locateNS(self.ns_address)
+        ns = Pyro4.locateNS(self.ns_address)        # assign Pyro4 nameserver
         for name, uri in list(ns.list().items()):
             self[name] = Pyro4.Proxy(uri)
 
@@ -156,7 +167,7 @@ def main(args):
     options,args=parser.parse_args(args)
 
     if options.gui:
-        sys.exit(slab.gui.runWin(InstrumentManagerWindow,filename=options.filename,nameserver=options.ns_address))
+        sys.exit(Experiment.gui.runWin(InstrumentManagerWindow,filename=options.filename,nameserver=options.ns_address))
     else:
         im=InstrumentManager(config_path=options.filename,server=options.server,
                              ns_address=options.ns_address)
@@ -169,8 +180,8 @@ def main(args):
 
 if __name__ == "__main__":
     try:
-        import slab.gui
-        from slab.instruments import InstrumentManagerWindow
+        import Experiment.gui
+        from Experiment.instruments import InstrumentManagerWindow
     except:
         print("Warning: Could not import slab.gui or InstrumentManagerWindow!")
     try:

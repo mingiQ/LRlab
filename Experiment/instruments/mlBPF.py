@@ -1,7 +1,7 @@
 # In[0] : necessary packages
 import sys
 sys.path.append('Z:/general/LRlabcode/LRlab')
-from Experiment.Instruments.InstrumentType import SerialInstrument
+from Experiment.instruments.instrumenttypes import SerialInstrument
 
 
 
@@ -20,7 +20,7 @@ class MLBPF(SerialInstrument):
      *    "TT pin"                   -> "TT"              - toggle pin
     */
     '''
-    def __init__(self, name="MLBandPassfilter", address='COM10', enabled=True, timeout=0.1, baudrate=115200):
+    def __init__(self, name="ML_BPF", address='COM10', enabled=True, timeout=0.1, baudrate=115200):
         SerialInstrument.__init__(self, name, address, enabled, timeout, baudrate)
         self.flush_input()
         self.flush_output()
@@ -35,6 +35,16 @@ class MLBPF(SerialInstrument):
         return self.query(f'FH {f}')
     
 
+
+if __name__ == '__main__':
+    bpf = MLBPF('BPF', address='COM3')
+    print(bpf.idn())
+    print('taking data')
+    
 # In[test]
 
-bp = MLBPF(direction='z')
+# =============================================================================
+# bp = MLBPF()
+# 
+# print(bp.idn())
+# =============================================================================

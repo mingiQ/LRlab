@@ -4,8 +4,9 @@ save_data_on_exit = True
 save_history = True
 save_non_project_files = False
 project_type = 'empty-project-type'
-recent_files = ['LAB_v0.py', 'Measurement.py', 'Phase_cal_V2.py', 'CMT_VNA.py', 'data_analysis_codes.py']
+recent_files = ['LAB_v0.py', 'instruments\\__init__.py', 'instruments\\mlBPF.py', 'instruments\\ami430magnet.py', 'instruments\\lr_DAC.py', 'instruments\\PNAX.py', 'instruments\\instrumentmanager.py', 'instruments\\copperMT.py', 'instruments\\anritsuMS2038.py', 'instruments\\instrumenttypes.py']
 
 [main]
 version = 0.2.0
+recent_files = []
 

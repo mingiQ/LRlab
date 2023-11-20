@@ -1,8 +1,7 @@
 # In[0] : necessary packages
 import sys
-import time
 sys.path.append('Z:/general/LRlabcode/LRlab')
-from Experiment.Instruments.InstrumentType import VisaInstrument
+from Experiment.instruments.instrumenttypes import VisaInstrument
 
 
 ## Copper Mountain VNA

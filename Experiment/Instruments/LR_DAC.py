@@ -1,7 +1,7 @@
 # In[0] : necessary packages
 import sys
 sys.path.append('Z:/general/LRlabcode/LRlab')
-from Experiment.Instruments.InstrumentType import SerialInstrument
+from Experiment.instruments.instrumenttypes import SerialInstrument
 
 
 

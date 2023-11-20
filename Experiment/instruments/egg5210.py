@@ -1,14 +1,7 @@
-import numpy as np
-import pyvisa
-import serial
-import socket
-import json
-import time
+# In[0] : necessary packages
 import sys
-
-rm = pyvisa.ResourceManager()
-def numtostr(mystr):`
-    return '%20.15e' % mystr
+sys.path.append('Z:/general/LRlabcode/LRlab')
+from Experiment.instruments.instrumenttypes import VisaInstrument
 
 ### EG&G 5210 Lock-in Amplifier
 class EGG5210:
