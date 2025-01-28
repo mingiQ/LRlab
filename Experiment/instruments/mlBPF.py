@@ -34,17 +34,20 @@ class MLBPF(SerialInstrument):
     def debug(self, f):
         return self.query(f'FH {f}')
     
-
-
-if __name__ == '__main__':
-    bpf = MLBPF('BPF', address='COM3')
-    print(bpf.idn())
-    print('taking data')
-    
-# In[test]
-
 # =============================================================================
-# bp = MLBPF()
+# 
+# # In[]
+# 
+# if __name__ == '__main__':
+#     bpf = MLBPF('BPF', address='COM3')
+#     print(bpf.idn())
+#     print('taking data')
+#     
+# # In[test]
+# 
+# bp = MLBPF(address='COM3')
 # 
 # print(bp.idn())
+# 
+# 
 # =============================================================================

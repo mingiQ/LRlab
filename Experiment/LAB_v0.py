@@ -327,7 +327,24 @@ class AMI430:
     def quit_magnet(self):
         self.magnet.close()
      
-        
+# =============================================================================
+# # In[]
+# 
+# magnet = serial.Serial(port=str('COM6'), baudrate=115200, timeout=0.1)
+# 
+# 
+# # In[]
+# magnet.write(str.encode('*IDN?\n'))
+# 
+# data = magnet.readline().rstrip()
+# print(data.decode())
+# 
+# # In[]
+# 
+# magnet.close()
+# 
+# # In[]      
+# =============================================================================
 ## DAC LR 
 class DAC_CF:
     '''
@@ -486,7 +503,7 @@ class MS2038:
         self._gpib.timeout = 120000
         time.sleep(2)
         data = data.replace('\r','')
-        data = data[data.index('!'):]
+        data = data[data.index('!'):]   
         time.sleep(1)
         with open(filename,'w') as f:
             f.write(data[data.index('!'):])
@@ -517,11 +534,23 @@ class MS2038:
             f.write(data[data.index('!'):])
             
 
+            
 # =============================================================================
-#             
 # # In[anritz debug]
 # 
-# vna = rm.open_resource('TCPIP::'+'192.168.0.105'+'::INSTR')
+# vna = rm.open_resource('TCPIP::'+'192.168.0.110'+'::INSTR')
+# 
+# 
+# 
+# # In[]
+# vna.timeout = 120000
+# a = vna.query("CALC1:DATA? FDAT")
+# #vna.baud_rate = 57600
+# #time.sleep(1)
+# 
+# # In[]
+# 
+# a
 # 
 # # In[data query]
 # 
@@ -534,6 +563,9 @@ class MS2038:
 # vna.baud_rate = 57600
 # time.sleep(1)
 # 
+# # In[]
+# 
+# a = vna.query('FORM:DATA?')
 # # In[dt]
 # print(data)
 # 
@@ -556,8 +588,8 @@ class MS2038:
 # print(data)
 # 
 # # In[]
+# 
 # =============================================================================
-
 
         
 ### Keysight E5071C vector network analyzer
@@ -681,9 +713,6 @@ class CMT:
             for line in source:
                 target.write(line)
         
-        
-        
-        
 
 #SR lock-in amplifier
 
@@ -740,7 +769,18 @@ class EGG5210:
         phase = self._gpib.read()
         ph = np.float_(np.fromstring(phase ,dtype=float,sep=' '))  # millidegree
         return ph/1e3
-    
+
+# =============================================================================
+# # In[egg debug]
+# 
+# egg = rm.open_resource('GPIB0::15::INSTR')
+# 
+# # In[]
+# egg.timeout=1200000
+# egg.query("ID")
+# 
+# # In[]
+# =============================================================================
         
     
 ### xilinx RFSoC
@@ -763,7 +803,7 @@ class RFSoC():
         Pyro4.config.SERIALIZER = "pickle"
         Pyro4.config.PICKLE_PROTOCOL_VERSION=4
         
-        self.ns_host = "192.168.0.102"
+        self.ns_host = "192.168.0.103"
         self.ns_port = 8888
         self.server_name = "myqick"
         
@@ -918,7 +958,7 @@ class LoopbackProgram(AveragerProgram):
         self.synci(200)  # give processor some time to configure pulses
     
     def body(self):
-        cfg=self.cfg   
+        cfg=self.cfg    
         self.measure(pulse_ch=cfg["res_ch"], 
              adcs=[0,1],
              adc_trig_offset=cfg["adc_trig_offset"],

@@ -1,11 +1,13 @@
-__author__ = 'Nitrogen'
-
+# In[0] : necessary packages
+import sys
+import numpy as np
+sys.path.append('Z:/general/LRlabcode/LRlab')
 # from liveplot import LivePlotClient
 # from dataserver import dataserver_client
 import os.path
 import json
 
-from slab import SlabFile, InstrumentManager, get_next_filename, AttrDict, LocalInstruments
+from Experiment import SlabFile, InstrumentManager, get_next_filename, AttrDict, LocalInstruments
 
 
 class Experiment:

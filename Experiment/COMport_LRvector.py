@@ -8,9 +8,9 @@ import time
 import sys
 
 
-# In[]
+# In[test @ heliox pc]
 
-com = serial.Serial('COM11', baudrate=115200, timeout=None)
+com = serial.Serial('COM49', baudrate=115200, timeout=None)
 
 com.flushInput()
 com.flushOutput()
@@ -18,7 +18,7 @@ com.flushOutput()
 # In[]
 
 #com.write(str.encode('?'))
-com.write(bytes('?', 'utf-8'))
+com.write(bytes('?\n', 'utf-8'))
 
 # In[]
 
@@ -27,6 +27,41 @@ print(data)
 
 com.flushInput()
 com.flushOutput()
+
+
+# In[]
+
+com.write(bytes('RF 1\n', 'utf-8'))
+
+# =============================================================================
+# com.write(bytes('DD 1\n', 'utf-8'))
+# 
+# com.write(bytes("WF 1 0 0\n", 'utf-8'))
+# =============================================================================
+
+# In[]
+
+com.write(bytes('RW 1\n', 'utf-8'))
+
+# In[]:
+    
+'''
+"IC dac Vret Vmin Vmax Vthp Vthn t1 t2 t3 tramp repeats AIN" 
+'''
+
+com.write(bytes('IC 1 0 -1 1 12 -12 0.01 0.01 0.001 1.0 1 1\n', 'utf-8'))
+
+# In[]
+
+com.write(bytes('RC 1\n', 'utf-8'))
+data
+# In[]
+
+com.flushInput()
+com.flushOutput()
+
+
+com.write(bytes('IS 1 2\n', 'utf-8'))
 
 # In[]:
     

@@ -1,5 +1,6 @@
 # In[0] : necessary packages
 import sys
+import  numpy as np
 sys.path.append('Z:/general/LRlabcode/LRlab')
 from Experiment.instruments.instrumenttypes import SerialInstrument
 
@@ -71,15 +72,144 @@ class DAC_CF(SerialInstrument):
         self.flush_input()
         self.flush_output()
     
-    def idn(self):
+    def get_idn(self):
         self.write('*IDN?')
         return self.read(timeout=self.timeout)
     
-    def voltsweep(self, dac_CF, volt):
-        self.write(f"WF {dac_CF} {volt} {volt}")
-        data = self.read(timeout=self.timeout)
-        print(data)
+    def dac_init(self, ch):
+        self.write(f"DD {ch}")
     
+    def set_voltage(self, ch, volt):
+        self.write(f"DD {ch}")
+        self.write(f"WF {ch} {volt} {volt}")
+        data = self.read(timeout=self.timeout)
+        return data
+    
+    def get_voltage(self, ch):
+        self.write(f"RF {ch}")
+        voltage = self.read(timeout=self.timeout)
+        #return np.float64(voltage.split('\r\n')[0].split('RF ')[1])
+        return np.float64(voltage.split('RF')[1])
+        
+    
+    def set_ramping_rate(self, ch, rate):
+        self.write(f"WS {ch} {rate}")
+    
+    def get_ramping_rate(self, ch):
+        self.write(f"RS {ch}")
+        rate = self.read(timeout=self.timeout)
+        return np.float64(rate.split('\r\n')[0].split('RS ')[1])
+        
+    def set_ac_mod(self, ch, amp, freq, phase, duty_cycle, mode):
+        '''
+      "WA dac ac                 -> "WA ac"           - set amplitude of ac modulation in V
+     *    "WT dac freq               -> "WT"              - set freq of ac modulation in [Hz]
+     *    "WP dac phase 
+     *    "WU dac duty               -> "WU"              - set pulse duty cycle (0-1)
+     *    "WM dac mode               -> "WM"              - set modulation type 0-off, 1-sin, 2-square, 3-pulse
+        '''
+        self.write(f"WA {ch} {amp}")
+        self.write(f"WT {ch} {freq}")
+        self.write(f"WP {ch} {phase}")
+        self.write(f"WU {ch} {duty_cycle}")
+        self.write(f"WM {ch} {mode}")
+        
+    def set_duty_cycle(self, ch, duty_cycle):
+        self.write(f"WU {ch} {duty_cycle}")
+    
+    def set_mod_type(self, ch, modtype):
+        self.write(f"WM {ch} {modtype}")
+        
+    def get_ac_mod(self, ch):
+        '''
+      *    "RW dac                    -> "RW many"         - read modulation params "dc,ac,f,ph,du'
+        '''
+        config = self.write(f"RW {ch}")
+        dc = config.split('DC')[1].split(' AC')[0]
+        ac = config.split('DC')[1].split(' AC')[1].split(' F')[0]
+        freq = config.split('DC')[1].split(' AC')[1].split(' F')[1].split(' P')[0]
+        phase = config.split('DC')[1].split(' AC')[1].split(' F')[1].split(' P')[1].split(' D')[0]
+        duty_cycle = config.split('DC')[1].split(' AC')[1].split(' F')[1].split(' P')[1].split(' D')[1].split(' M')[0]
+        mod_type = config.split('DC')[1].split(' AC')[1].split(' F')[1].split(' P')[1].split(' D')[1].split(' M')[1]
+        
+        return np.float64([dc, ac, freq, phase, duty_cycle, mod_type])
+    
+    
+    ###
+    ### Experiments
+    ###
+    def set_IcSweeps(self, ch, vret, vmin, vmax, vthp, vthn, t1, t2, t3, tramp, repeats, adc_ch ):
+        '''
+        IC dac Vret Vmin Vmax Vthp Vthn t1 t2 t3 tramp repeats AIN
+        
+        high speed IV sweep for Ic characterization
+
+        Parameters
+        ----------
+         : TYPE
+            dac: dac channel
+            Vret: voltage to rest
+            Vmin: minimum voltage for sweep
+            Vmax: max voltage for sweep
+            Vthp: V_threshold, positive (slightly higher than voltage converted + critical current )
+            Vthn: V_threshold, negative (slightly lower than voltage converted - critical current)
+            t1: stablizing time for DAC
+            t2: wait time for DAC
+            t3: measurement delay for ADC
+            tramp: ramping time
+            repeats: number of experiment
+            AIN: ADC channel, 0: comparator
+
+        Returns
+        -------
+        None.
+
+        '''
+        self.write(f"IC {ch} {vret} {vmin} {vmax} {vthp} {vthn} {t1} {t2} {t3} {tramp} {repeats} {adc_ch}")
+        
+    def get_IcSweep_params(self, ch):
+        '''
+        
+
+        Parameters
+        ----------
+        ch : assigned dac channel
+
+        Returns
+        -------
+        decode_param : np.array
+        Vret Vmin Vmax Vthp Vthn t1 t2 t3 tramp repeats AIN Vres
+
+        '''
+        self.write(f"RC {ch}")
+        params = self.read(timeout=self.timeout)
+        decode_param = np.float64(params.split('RC')[1].split(' ')[1:])
+        return decode_param
+        
+    def Ic_Sweep(self, ch, sweep_mode):
+        '''
+        "IS dac mode"              
+        -> "IS stat/stream"  
+        - performs Ic sweeps, mode=0: <Ic>, std, min, max, repeats
+                                   1: stream of Isw's
+                                   2: strem (Vdac,Vadc) for each step between Vmin and Vmax
+        '''
+        self.write(f"IS {ch} {sweep_mode}")
+    
+# In[]:
+    
+#dac = DAC_CF()
+
+
+# In[test aidan dac @ heliox]
+
+#dac = DAC_CF(name='dac', address='COM7', enabled=True, timeout=0.1, baudrate=115200)
+
+# In[]
+
+#dac.__del__()
+    
+# In[]
     
 # =============================================================================
 #     

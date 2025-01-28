@@ -364,6 +364,16 @@ def hangerfunc_new_withQc(p,x):
     (Qc + Qi) ** 2 + 4. * Qi ** 2. * Qc ** 2. * a ** 2.))
     return y
 
+def hangerfunc_new_withQc_lin(p,x):
+    """p=[f0,Qi,Qc,df,scale]"""
+    #print p    
+    f0,Qi,Qc,df,scale = p
+    a=(x-(f0+df))/(f0+df)
+    b=2*df/f0
+    y = (scale * (Qc ** 2. + Qi ** 2. * Qc ** 2. * (2. * a + b) ** 2.) / (
+    (Qc + Qi) ** 2 + 4. * Qi ** 2. * Qc ** 2. * a ** 2.))
+    return y
+
 def hangerfunctilt(p,x):
     """Ge Editing  p=[f0,Qi,Qc,df,scale,slope, offset]"""
     f0, Qi, Qc, df, slope, offset = p

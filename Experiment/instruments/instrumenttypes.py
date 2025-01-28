@@ -53,12 +53,12 @@ class Instrument(object):
 
     def encode_s(self, s):
         if type(self.term_char) == str:
-            term_char = self.term_char.encode()
+            term_char = str.encode(self.term_char)
         else:
             term_char = self.term_char
 
         if type(s) == str:
-            return s.encode() + term_char
+            return str.encode(s) + term_char
         else:
             return s + term_char
 
@@ -100,15 +100,25 @@ class Instrument(object):
         "re-naming of __getattr__ which is unavailable when proxied"
         return getattr(self, name)
 
-
+# =============================================================================
+# # In[]
+# inst = Instrument(name='test')
+# 
+# print(inst.encode_s('*IDN?'))
+# 
+# # In[]
+# =============================================================================
 class VisaInstrument(Instrument):
-    def __init__(self, name, address='', enabled=True, timeout=1.0, **kwargs):
+    def __init__(self, name, address='', enabled=True, timeout=1.0, rm=False, **kwargs):
         Instrument.__init__(self, name, address, enabled, timeout, **kwargs)
         if self.enabled:
             self.protocol = 'VISA'
             self.timeout = timeout
             address = address.upper()
-            self.instrument = pyvisa.ResourceManager().open_resource(address)
+            if rm is not False:
+                self.instrument = pyvisa.ResourceManager(rm).open_resource(address)
+            else:
+                self.instrument = pyvisa.ResourceManager().open_resource(address)
             self.instrument.timeout = timeout * 1000
 
     def _query(self, s):
@@ -127,6 +137,19 @@ class VisaInstrument(Instrument):
 
     def close(self):
         if self.enabled: self.instrument.close()
+        
+    def read_lineb(self, eof_char=b'\n', timeout=None):
+        done = False
+        while done is False:
+            buffer_str = self.readb(timeout)
+            # print "buffer_str", [buffer_str]
+            if buffer_str is None:
+                pass  # done = True
+            elif buffer_str[-len(eof_char):] == eof_char:
+                done = True
+                yield buffer_str
+            else:
+                yield buffer_str
 
 
 class TelnetInstrument(Instrument):
@@ -187,7 +210,8 @@ class SocketInstrument(Instrument):
         if self.enabled: self.socket.settimeout(self.timeout)
 
     def write(self, s):
-        if self.enabled: self.socket.send(self.encode_s(s))
+        self.cmd = str(s)
+        if self.enabled: self.socket.send(self.cmd.encode())
 
     # def query(self, s):
     #     self.write(s)
@@ -242,7 +266,7 @@ class SerialInstrument(Instrument):
         self.enabled = enabled
         if self.enabled:
             try:
-                self.ser = serial.Serial(address, baudrate)
+                self.ser = serial.Serial(port=address, baudrate=baudrate, timeout=timeout)
             except serial.SerialException:
                 print('Cannot create a connection to port ' + str(address) + '.\n')
         self.set_timeout(timeout)
@@ -257,7 +281,12 @@ class SerialInstrument(Instrument):
         self.ser.setTimeout(self.timeout)
 
     def write(self, s):
-        if self.enabled: self.ser.write(self.encode_s(s))
+        cmd = self.encode_s(s)
+        if self.enabled: self.ser.write(cmd)
+        
+    def writeb(self, s):
+        cmd = s+'\n'
+        self.ser.write(str.encode(cmd))
 
     def read(self, timeout=None):
         # todo: implement timeout, reference SocketInstrument.read
@@ -265,7 +294,9 @@ class SerialInstrument(Instrument):
 
     def readb(self, timeout=None):
         # todo: implement timeout, reference SocketInstrument.read
-        if self.enabled: return self.ser.read(self.recv_length)
+        if self.enabled: 
+            data = self.ser.readline().rstrip()
+        return data.decode()
 
     def reset_connection(self):
         self.ser.close()

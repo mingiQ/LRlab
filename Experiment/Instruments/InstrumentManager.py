@@ -5,6 +5,7 @@ import Experiment
 import os
 import sys
 import socket
+import importlib
 from optparse import OptionParser
 
 try:
@@ -80,8 +81,8 @@ class InstrumentManager(dict):
         """Loads instrument based on config_string (Name\tAddress\tType)"""
         #print(config_string)
         name, in_class, addr = self.parse_config_string(config_string);
-        fn = getattr(Experiment.Instruments, in_class)
-        return fn(name=name, address=addr)
+        fn = getattr(Experiment.instruments, in_class)
+        return fn(name=name, address=addr)    # equivalent to import inst(name='name', address='addr')
 
     def __getattr__(self, item):
         """Maps values to attributes.

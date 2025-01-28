@@ -16,6 +16,8 @@ import cmath
 import numpy
 
 from scipy import optimize
+from scipy.constants import h,hbar, e, Boltzmann
+from numpy import pi
 
 # In[1] : sorting data
 
@@ -201,12 +203,79 @@ def decayrabifunc1(p, x):
 def rabiwidth(p, x):
     return np.sqrt(p[1]**2*(x**2) + p[0]**2)
 
+def rabiwidth2(p, x):
+    return np.sqrt((p[1]-x)**2 + p[0]**2)
+
 def rabisatfunc(p, x):
     return p[0] + x**2/(2*x**2 + 1/p[1] )
 
 def dispersiveshift(p, x):
     """p[0]+p[1]/(1+(x-p[2])**2/p[3]**2)"""
     return p[0]+p[1]/(1+(x-p[2])**2/p[3]**2) + p[4]/(1+(x-p[5])**2/p[6]**2)
+
+'''
+ABS spectrum in short junction
+'''
+
+def z(M, Zr, fr):
+    Rq = h/(4*e**2)
+    omega_r = 2*pi*fr
+    return pi*M**2*omega_r**2/(Zr*Rq)
+
+def E_A(p, phi):
+    Delta_sc, tau = p
+    E = Delta_sc*np.sqrt(1-tau*np.sin(phi/2)**2)
+    return E
+
+def I_A(p, phi):
+    Delta_sc, tau = p
+    I = h*Delta_sc/(4*(h/(2*e)))*tau*np.sin(phi)/np.sqrt(1-tau*np.sin(phi/2)**2)
+    return -I, I
+
+def gc(tau, phi, M, Zr, fr, Delta_sc):
+    E_a = E_A(Delta_sc, tau, phi)
+    E_a_pi = E_A(Delta_sc, tau, np.pi)
+    return np.sqrt(z(M, Zr, fr))*E_a_pi/2*(Delta_sc/E_a - E_a/Delta_sc)
+
+def eigen_ABS_JC(n_ph, tau, phi, M, Zr, fr, Delta_sc):
+    d = 2*E_A(Delta_sc, tau, phi) - fr
+    Ep = (E_A(Delta_sc, tau, phi) + (n_ph+1/2)*fr + np.sqrt(gc(tau, phi, M, Zr, fr, Delta_sc)**2+d**2/4))/(fr)
+    Em = (E_A(Delta_sc, tau, phi) + (n_ph+1/2)*fr - np.sqrt(gc(tau, phi, M, Zr, fr, Delta_sc)**2+d**2/4))/(fr)
+    return Ep, Em
+
+
+
+## TLS fit ref: arxiv 1010.6063v2 eq 5, 6
+
+def insertion_loss(Qint, Qex, Pinc, n):
+    '''
+    calculates insertion loss of coupling capacitor (or inductor)
+    and circulating power inside the resonator. 
+    Pinc: incident power right before the resonator. Probe power / line attenuation --> lin mag!!
+    n: nth harmonics of the resonator 
+
+    output: 
+    IL (insertion loss) in lin mag
+    Pcirc : circulating power
+    '''
+    Qtot = 1/(1/Qint+1/Qex)  # loaded Q
+    IL = 1-Qtot/Qint  # insertion loss in lin mag
+    Pcirc = Qtot/(n*np.pi) * (IL * Pinc)
+    return IL, Pcirc
+
+def tlsfit_model(p, x):
+    '''
+    we will fit inverse TLS function
+    ref: arxiv 1010.6063v2 eq 5, 6
+    
+    x : converted circulating power e.g. power_circ = np.array([insertion_loss(Qint[n], Qex[n], power_in_W[n], 1)[1] for n in range(len(power_in_W))])
+    '''
+    h = 6.62607015e-34 
+    kB = 1.380649e-23
+    Q0, losstan, beta, Pc, f0, T = p
+    inverseQtls = losstan * np.tanh(h*f0/(2*kB*T))/np.sqrt(1+(x/Pc)**beta)
+    y = inverseQtls + 1/Q0
+    return y
 
 # In[3]: extract parameters
 
@@ -472,7 +541,7 @@ def fitdecaysin(xdata,ydata,fitparams=None,domain=None,showfit=False,showstartfi
     
     # determine initial fit parameters
     if fitparams is None:    
-        FFT=scipy.fft(fitdatay)
+        FFT=scipy.fft.fft(fitdatay)
         fft_freqs=scipy.fftpack.fftfreq(len(fitdatay),fitdatax[1]-fitdatax[0])
         max_ind=np.argmax(abs(FFT[4:int(len(fitdatay)/2)]))+4
         fft_val=FFT[max_ind]
@@ -506,7 +575,7 @@ def fitdecaydoublesin(xdata,ydata,fitparams=None,domain=None,showfit=False,shows
     
     # determine initial fit parameters
     if fitparams is None:
-        FFT=scipy.fft(fitdatay)
+        FFT=scipy.fft.fft(fitdatay)
         fft_freqs=scipy.fftpack.fftfreq(len(fitdatay),fitdatax[1]-fitdatax[0])
         max_ind=np.argmax(abs(FFT[4:len(fitdatay)/2.]))+4
         fft_val=FFT[max_ind]
@@ -540,7 +609,7 @@ def fitsin(xdata,ydata,fitparams=None,domain=None,showfit=False,showstartfit=Fal
     
     # determine initial fit parameters  
     if fitparams is None:    
-        FFT=scipy.fft(fitdatay)
+        FFT=scipy.fft.fft(fitdatay)
         fft_freqs=scipy.fftpack.fftfreq(len(fitdatay),fitdatax[1]-fitdatax[0])
         max_ind=np.argmax(abs(FFT[4:len(fitdatay)/2.]))+4
         fft_val=FFT[max_ind]
@@ -865,7 +934,7 @@ def fitdecayrabi(xdata,ydata,fitparams=None,domain=None,showfit=False,showstartf
         fitdatax=xdata
         fitdatay=ydata
     if fitparams is None:
-        FFT=scipy.fft(fitdatay)
+        FFT=scipy.fft.fft(fitdatay)
         fft_freqs=scipy.fftpack.fftfreq(len(fitdatay),fitdatax[1]-fitdatax[0])
         max_ind=np.argmax(abs(FFT[2:int(len(fitdatay)/2.)]))+2
         fft_val=FFT[max_ind]
@@ -913,7 +982,7 @@ def fitsin(xdata,ydata,fitparams=None,domain=None,showfit=False,showstartfit=Fal
         fitdatax=xdata
         fitdatay=ydata
     if fitparams is None:
-        FFT=scipy.fft(fitdatay)
+        FFT=scipy.fft.fft(fitdatay)
         fft_freqs=scipy.fftpack.fftfreq(len(fitdatay),fitdatax[1]-fitdatax[0])
         max_ind=np.argmax(abs(FFT[4:int(len(fitdatay)/2.)]))+4
         fft_val=FFT[max_ind]
@@ -970,6 +1039,22 @@ def fitrabiwidth(xdata,ydata,fitparams=None,domain=None,showfit=False,showstartf
 
     return p1
 
+def fitrabiwidth2(xdata,ydata,fitparams=None,domain=None,showfit=False,showstartfit=False,label="",debug=False):
+    """fit lorentzian:
+        returns [offset,amplitude,center,hwhm]"""
+    if domain is not None:
+        fitdatax,fitdatay = selectdomain(xdata,ydata,domain)
+    else:
+        fitdatax=xdata
+        fitdatay=ydata
+    if fitparams is None:
+        fitparams=[np.sqrt((ydata[-1]-ydata[0])/(xdata[-1]-xdata[0])),ydata[0]]
+    if debug==True: print(fitparams)
+    p1 = fitgeneral(fitdatax, fitdatay, rabiwidth2, fitparams, domain=None, showfit=showfit, showstartfit=showstartfit,
+                    label=label)
+
+    return p1
+
 
 
 
@@ -995,6 +1080,37 @@ def fitdispersiveshift(xdata,ydata,fitparams=None,domain=None,showfit=False,show
                     label=label)
     p1[3]=abs(p1[3])
     return p1
+
+
+def fitshortABSspectrum(xdata, ydata, fitparams=None, domain=None, showfit=False, showstartfit=False, label="",debug=False):
+    if domain is not None:
+        fitdatax,fitdatay = selectdomain(xdata,ydata,domain)
+    else:
+        fitdatax=xdata
+        fitdatay=ydata
+
+def fitTLSmodel(f, T, tls_sat_point, xdata,ydata,fitparams=None,domain=None,showfit=False,showstartfit=False,label="",debug=False):
+
+    def specific_tlsmodel(p, x):
+        p0, p1, p2, p3 = p
+        y = tlsfit_model([p0, p1, p2, p3, f, T], x)
+        return y
+
+    if domain is not None:
+        fitdatax,fitdatay = selectdomain(xdata,ydata,domain)
+    else:
+        fitdatax=xdata[:tls_sat_point]   # e.g. power_circ[:-3]
+        fitdatay=ydata[:tls_sat_point]   # e.g.  1/Qint[:-3]
+    if fitparams is None:
+        print("Assign initial guess... this fitting is unstable")
+        
+    if debug==True: print(fitparams)
+
+    TLSfit = fitgeneral(xdata=fitdatax, ydata=fitdatay, fitfunc=specific_tlsmodel, fitparams=[1e-4, 1e-5, 0.01, 1e-12], domain=None, showfit=True, showstartfit=False, showdata=True, label='', mark_data='bo', mark_fit='r-')
+    print(f"Q0 = {1/TLSfit[0]}, losstan = {TLSfit[1]}, beta = {TLSfit[2]}, Pc = {TLSfit[3]},")
+    plt.ylabel(r"$(Q_{{int}})^{{-1}}$")
+    plt.xlabel("circulating power (W)")
+    return TLSfit
 
 # In[debug]:
     

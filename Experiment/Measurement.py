@@ -4,9 +4,9 @@ import numpy as np
 import time
 import matplotlib.pyplot as plt
 
-sys.path.append('Z:/Mingi Kim/python_codes')
-import LAB_v0
-from data_analysis_codes import *
+sys.path.append('Z:/general/LRlabcode/LRlab')
+import Experiment.LAB_v0
+from Experiment.data_analysis_codes import *
 
 # In[measurement function]
 
@@ -75,6 +75,8 @@ def visualS21(vna, start, stop, pnts, IF, avg, meas_t, path, name):
     plt.plot(phases*np.pi/180, 10**(s21/20), '.')
     plt.grid(True)
     plt.show() 
+    
+    return freq, s21, phases
     
     
 def frequency_sweep(vna, f_init, f_fin, scan_range, pnts, IF, avg, t, name, wdir):

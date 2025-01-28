@@ -39,9 +39,9 @@ def autowrap_text(textobj, renderer):
 
     # Use either the left or right distance depending on the horiz alignment.
     alignment = textobj.get_horizontalalignment()
-    if alignment is 'left':
+    if alignment == 'left':
         new_width = right_space 
-    elif alignment is 'right':
+    elif alignment == 'right':
         new_width = left_space
     else:
         new_width = 2 * min(left_space, right_space)

@@ -21,6 +21,8 @@ def data_extract(Path, file, data_type):
         skip = 2
     elif data_type == 'pna':
         skip = 8
+    elif data_type == 'cmt':
+        skip = 5
         
     dat = np.loadtxt(Path+file, skiprows=skip)
     freq = dat[:,0]
@@ -144,49 +146,51 @@ def square_correlate(dat1, dat2, scan_range, correlat_path, filename):
     plt.ylabel(r'Square-correlation $log\,S_{II_0}(\Delta f)$')
 
 
-from PyQt5 import QtWidgets, QtCore
-from pyqtgraph import PlotWidget, plot
-import pyqtgraph as pg
-import sys  # We need sys so that we can pass argv to QApplication
-import os
-
-class PlotWindow(QtWidgets.QMainWindow):
-
-    def __init__(self, xs, ys, *args, **kwargs):
-        super(PlotWindow, self).__init__(*args, **kwargs)
-
-        self.graphWidget = pg.PlotWidget()
-        self.setCentralWidget(self.graphWidget)
-
-        #hour = [1,2,3,4,5,6,7,8,9,10]
-        #temperature_1 = [30,32,34,32,33,31,29,32,35,45]
-        #temperature_2 = [50,35,44,22,38,32,27,38,32,44]
-
-        #Add Background colour to white
-        self.graphWidget.setBackground('w')
-        # Add Title
-        self.graphWidget.setTitle("Your Title Here", color="b", size="30pt")
-        # Add Axis Labels
-        styles = {"color": "#f00", "font-size": "20px"}
-        self.graphWidget.setLabel("left", "Transmission(ADC levels)", **styles)
-        self.graphWidget.setLabel("bottom", "Freq(MHz)", **styles)
-        #Add legend
-        self.graphWidget.addLegend()
-        #Add grid
-        self.graphWidget.showGrid(x=True, y=True)
-        #Set Range
-        #self.graphWidget.setXRange(0, 10, padding=0)
-        #self.graphWidget.setYRange(20, 55, padding=0)
-        
-        for i in range(len(xs)):
-            self.plot(xs[i], ys[i], "{}th".format(i), 'r')
-
-        #self.plot(hour, temperature_1, "Sensor1", 'r')
-        #self.plot(hour, temperature_2, "Sensor2", 'b')
-
-    def plot(self, x, y, plotname, color):
-        pen = pg.mkPen(color=color)
-        self.graphWidget.plot(x, y, name=plotname, pen=pen, symbol='+', symbolSize=10, symbolBrush=(color))    
+# =============================================================================
+# from PyQt5 import QtWidgets, QtCore
+# from pyqtgraph import PlotWidget, plot
+# import pyqtgraph as pg
+# import sys  # We need sys so that we can pass argv to QApplication
+# import os
+# 
+# class PlotWindow(QtWidgets.QMainWindow):
+# 
+#     def __init__(self, xs, ys, *args, **kwargs):
+#         super(PlotWindow, self).__init__(*args, **kwargs)
+# 
+#         self.graphWidget = pg.PlotWidget()
+#         self.setCentralWidget(self.graphWidget)
+# 
+#         #hour = [1,2,3,4,5,6,7,8,9,10]
+#         #temperature_1 = [30,32,34,32,33,31,29,32,35,45]
+#         #temperature_2 = [50,35,44,22,38,32,27,38,32,44]
+# 
+#         #Add Background colour to white
+#         self.graphWidget.setBackground('w')
+#         # Add Title
+#         self.graphWidget.setTitle("Your Title Here", color="b", size="30pt")
+#         # Add Axis Labels
+#         styles = {"color": "#f00", "font-size": "20px"}
+#         self.graphWidget.setLabel("left", "Transmission(ADC levels)", **styles)
+#         self.graphWidget.setLabel("bottom", "Freq(MHz)", **styles)
+#         #Add legend
+#         self.graphWidget.addLegend()
+#         #Add grid
+#         self.graphWidget.showGrid(x=True, y=True)
+#         #Set Range
+#         #self.graphWidget.setXRange(0, 10, padding=0)
+#         #self.graphWidget.setYRange(20, 55, padding=0)
+#         
+#         for i in range(len(xs)):
+#             self.plot(xs[i], ys[i], "{}th".format(i), 'r')
+# 
+#         #self.plot(hour, temperature_1, "Sensor1", 'r')
+#         #self.plot(hour, temperature_2, "Sensor2", 'b')
+# 
+#     def plot(self, x, y, plotname, color):
+#         pen = pg.mkPen(color=color)
+#         self.graphWidget.plot(x, y, name=plotname, pen=pen, symbol='+', symbolSize=10, symbolBrush=(color))    
+# =============================================================================
 
 def densityplot_2d(x_data, y_data, z_data, colormap, label_x, label_y, label_z):
      X,Y = np.meshgrid(x_data, y_data)
@@ -233,7 +237,50 @@ def eigen_ABS_JC(n_ph, tau, phi, M, Zr, fr, Delta_sc):
     Em = (E_A(Delta_sc, tau, phi) + (n_ph+1/2)*fr - np.sqrt(gc(tau, phi, M, Zr, fr, Delta_sc)**2+d**2/4))/(fr)
     return Ep, Em
 
+gamma = 0.00026 * 2*pi
+kappa = 0.0013 * 2*pi
+fr=9
+w = fr * 2*pi
+delta = 0.4
+tau = 0.9999
 
+M = 29e-12
+Delta_sc = 320e9
+def transmission_rfsquid_hanger(gamma, kappa, fr, w, delta, tau, Zr):
+    f_lists = np.linspace(w/(2*pi)-delta/2, w/(2*pi)+delta, 800)
+    phi_lists = np.linspace(0.97, 1.03, 800)
+    
+    t_array = np.zeros((len(f_lists), len(phi_lists)))
+    for i, f in enumerate(f_lists):
+        t_calc = []
+        w_d = f * 2*pi
+        for j, ph in enumerate(phi_lists):
+            
+            phi = ph*pi
+            
+            wq = 2*E_A(Delta_sc=Delta_sc, tau=tau, phi=phi)/1e9 * 2* pi
+            g = gc(tau=tau, phi=phi, M=M, Zr=Zr, fr=fr*1e9, Delta_sc=Delta_sc)/1e9 * 2*pi
+            
+            #print(f"phase = {ph}, Andreev level: {wq/(2*pi)} GHz, coupling {g/(2*pi)} GHz")
+            
+            detuning_r = w_d - w + 1j*kappa/2
+            detuning_q = w_d - wq + 1j*gamma
+            
+            t = 1-np.pi/2*1j*kappa/2/(detuning_r - g**2/detuning_q)
+            #print(abs(t))
+            t_calc.append(abs(t))
+        t_array[i] = np.array(t_calc)
+    
+    #t_arr = t_array[::-1]
+    plt.rcParams['font.size'] = '16'
+    
+    plt.title(fr'$\tau=${tau}, M={M*1e12}pH')
+    
+    plt.pcolor(phi_lists, (f_lists-fr)*1e3, t_array, cmap='RdBu')
+    #plt.ylim(0.9,1.1)
+    plt.ylabel('detuning (MHz)')
+    plt.xlabel(r'phase bias ($\varphi/\pi$)')
+    plt.colorbar(label='Normalized Transmission')  # Add colorbar with label
 # In[correlation fucntion between spectra]
 # =============================================================================
 # 

@@ -355,7 +355,7 @@ class SlabFile(h5py.File):
         try:
             ds = self['notes']
         except:
-            ds = self.create_dataset('notes', (0,), maxshape=(None,), dtype=h5py.new_vlen(str))
+            ds = self.create_dataset('notes', (0,), maxshape=(None,), dtype=h5py.special_dtype(vlen=str))
 
         shape = list(ds.shape)
         shape[0] = shape[0] + 1

@@ -1,7 +1,7 @@
 # In[0]: necessary packages
 
 import numpy as np
-from numpy import pi, cosh, sinh, tanh, sqrt, log10
+from numpy import pi, cosh, sinh, tanh, sqrt, log10, log
 from scipy.special import ellipk
 
 # In[1]: functions
@@ -11,7 +11,7 @@ from scipy.special import ellipk
 epsilon_0 = 8.85e-12
 k_b=1.380649e-23
 h = 6.626068e-34 
-c=3e8
+c=299792458
 mu=4*pi*(1e-7)
 
 '''
@@ -100,17 +100,21 @@ def impe_char(Erel, gap, rho, tc, width, thick, temp):
 
 '''
 Jiansong Gao Thesis
+
+note that the scipy has different ellipk definition to the thesis!!
+refer: https://en.wikipedia.org/wiki/Elliptic_integral#Argument_notation 
+be aware of the typo on main thesis : please refer Appendix D and cross-check 1/16/2024
 '''
 
 def k(a, b, thick):
     d=2*thick/pi
     if thick > 0:
-        u1=a/2+d/2+3*d/2*log10(2)-d/2*log10(2*d/a)+d/2*log10((b-a)/(b+a))
+        u1=a/2+d/2+1.5*d*log(2)-d/2*log(2*d/a)+d/2*log((b-a)/(b+a))
         u1p=u1-d
-        u2=b/2-d/2-3*d/2*log10(2)+d/2*log10(2*d/b)+d/2*log10((b-a)/(b+a))
+        u2=b/2-d/2-1.5*d*log(2)+d/2*log(2*d/b)-d/2*log((b-a)/(b+a))
         u2p=u2+d
     elif thick == 0:
-        u1 = a/2
+        u1 = a/2    
         u2 = b/2
     kt = u1/u2
     ktp = sqrt(1-kt**2)
@@ -128,14 +132,14 @@ def Cap(a, b, thick):
     eps0 = 8.85e-12
     kt = k(a,b,thick)[0]
     ktp = k(a,b,thick)[1]
-    C_half = eps0*2*ellipk(kt)/ellipk(ktp)
+    C_half = eps0*2*ellipk(kt**2)/ellipk(ktp**2)
     return C_half
 
 def Ind(a, b, thick):
     mu0 = 4*pi*(1e-7)
     kt = k(a,b,thick)[0]
     ktp = k(a,b,thick)[1]
-    L_half = mu0*ellipk(ktp)/ellipk(kt)/2
+    L_half = mu0*ellipk(ktp**2)/ellipk(kt**2)*0.5
     return L_half
 
 def Ctot(a, b, thick, Erel):
@@ -148,7 +152,7 @@ def Ceff(a, b, thick, Eeff):
     
 
 def Ltot(a, b, thick):
-    Lt = 0.5*Ind(a,b,thick)
+    Lt = 0.5*Ind(a,b,thick/2)
     return Lt
 
 def imp(a,b, thick, rho, tc, Erel, temp):
@@ -158,6 +162,43 @@ def imp(a,b, thick, rho, tc, Erel, temp):
     Z = sqrt((Lg+Lk)/C)
     v_ph = 1/sqrt((Lg+Lk)*C)
     return Z, v_ph
+
+def imp_v2(a, b, thick, Lk, tc, Erel, temp):
+    '''
+    
+
+    Parameters
+    ----------
+    a : float  (m)
+        width of the CPW
+    b : float  (m)
+        width+2*spacing
+    thick : float (m) 
+        thickness of the metal
+    Lk : float  (H/m)
+        kinetic inductance of the sc
+    tc : float  (K)
+        critical temperature
+    Erel : float  
+        dielectric constant
+    temp : temperature (K)
+     float
+
+    Returns
+    -------
+    Z : float
+        characteristic impedance
+    v_ph : float
+        phase velocity
+
+    '''
+    Lg = Ltot(a,b, thick)
+    #Lk = L_kinetic_v3(rho, tc, a, thick, temp)[0]
+    C = Ctot(a,b, thick, Erel)
+    Z = sqrt((Lg+Lk)/C)
+    v_ph = 1/sqrt((Lg+Lk)*C)
+    return Z, v_ph
+
 
 def vph(l ,L ,C, QWR):
     num = len(l)
@@ -189,3 +230,8 @@ def Qc_qwr(Zl, Z0, fres, Cfr):
     omega_res = 2*np.pi*fres
     Q = 2*np.pi/(4*Zl*Z0*(omega_res*Cfr)**2)
     return Q
+
+def Cfr_Qc(Qc, Zl, Z0, fres):
+    omega_res = 2*np.pi*fres
+    Cfr = 1/omega_res * (2*Zl/np.pi * Z0 * Qc)**(-1/2)
+    return Cfr

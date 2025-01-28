@@ -24,6 +24,34 @@ from .TestInstrument import EchoInstrument,RandomInstrument
 # except: print("Could not load BKPowerSupply")
 try: from .mlBPF import MLBPF
 except: print("Could not load MLBPF")
+try: from .egg5210 import EGG5210
+except: print("Could not load 5210")
+try: from .anritsuMS2038 import MS2038
+except: print("Could not load Anritsu")
+try: from .temperature_Leiden import Thermo_leiden
+except: print("Could not load leiden_thermo")
+try: from .copperMT import CMT
+except: print("Could not load Copper Mountain")
+try: from .ami430magnet import AMI430
+except: print("Could not AMI")
+try: from .dmm2612 import Keithley_2612
+except: print("Could not load Keithley 2612")
+try: from .gigatronics1018 import GT1018
+except: print("Could not load Gigatronics")
+try: from .keithely2400 import Keithley_2400
+except: print("Could not load K2400")
+try: from .PNAX import PNA
+except: print("Could not load PNAX")
+try: from .lr_DAC import DAC_CF
+except: print("Could not load DAC")
+try: from .keithely237 import Keithley_237
+except: print("Could not load Keithley 237")
+try: from .rfgenerator import E4421B
+except: print("Could not load E4421B")
+try: from .spectrum_analyzer import E4440
+except: print("Could not load E4440A")
+try: from .aeroflex import Aeroflex
+except: print("Could not load Aeroflex")
 # try: from .KEPCOPowerSupply import KEPCOPowerSupply
 # except: print("Could not load KEPCOPowerSupply")
 # try: from .voltsource import SRS900
